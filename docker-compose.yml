@@ -79,6 +79,19 @@ services:
         condition: service_started
     networks:
       - lastsignal_net
+      
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: lastsignal_ngrok
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    command: http keycloak:8080
+    ports:
+      - "4040:4040"
+    depends_on:
+      - keycloak
+    networks:
+      - lastsignal_net
 
 # ─────────────────────────────────────────
 # Volumes & Networks
