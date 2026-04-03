@@ -1,0 +1,14 @@
+{
+  "realm": "lastsignal",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "lastsignal-api",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "changeme",
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true
+    }
+  ]
+}
