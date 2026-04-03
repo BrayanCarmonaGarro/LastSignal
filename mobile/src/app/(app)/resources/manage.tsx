@@ -1,0 +1,1 @@
+// Agregar/reducir recursos
