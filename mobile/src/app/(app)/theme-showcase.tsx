@@ -1,4 +1,4 @@
-// src/app/(app)/dashboard.tsx
+// src/app/(app)/theme-showcase.tsx
 import React, { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Switch, useColorScheme } from 'react-native';
 import {
@@ -69,7 +69,7 @@ const Section = ({
 
 // ── Pantalla principal ────────────────────────────────────────
 
-export default function Dashboard() {
+export default function ThemeShowcase() {
   const systemScheme = useColorScheme();
   const [lightMode, setLightMode] = useState(systemScheme === 'light');
   const theme = getTheme(lightMode ? 'light' : 'dark');
@@ -97,10 +97,10 @@ export default function Dashboard() {
             marginBottom: spacing.md,
           }}
         >
-          LAST SIGNAL
+          THEME SHOWCASE
         </Text>
         <Text style={{ fontSize: fontSizes.body, color: theme.textSecondary }}>
-          Theme Dashboard — Demostración del Design System
+          Demostración completa del Design System de LastSignal
         </Text>
 
         <View

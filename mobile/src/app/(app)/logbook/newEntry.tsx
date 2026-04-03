@@ -1,13 +1,13 @@
-// Pantalla de login Keycloak
+// Nueva entrada + foto
 import { View, Text } from 'react-native'
 import React from 'react'
 
-const login = () => {
+const newEntry = () => {
   return (
     <View>
-      <Text>login</Text>
+      <Text>new</Text>
     </View>
   )
 }
 
-export default login
+export default newEntry
