@@ -1,4 +1,5 @@
-// src/app/(app)/theme-showcase.tsx
+// src/app/(app)/dashboard.tsx
+// Pantalla de demostración del Design System con tokens temáticos - Borrar despues
 import React, { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Switch, useColorScheme } from 'react-native';
 import {
@@ -11,6 +12,11 @@ import {
   animation,
   type ThemeTokens,
 } from '@/constants/theme';
+// Imports nuevos
+import { TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useLogout } from '@/hooks/useLogout';
+import { useAuthStore } from '@/store/authStore';
 
 // ── Sub-componentes ───────────────────────────────────────────
 
@@ -69,10 +75,11 @@ const Section = ({
 
 // ── Pantalla principal ────────────────────────────────────────
 
-export default function ThemeShowcase() {
+export default function Dashboard() {
   const systemScheme = useColorScheme();
   const [lightMode, setLightMode] = useState(systemScheme === 'light');
   const theme = getTheme(lightMode ? 'light' : 'dark');
+  const { logout } = useLogout();
 
   return (
     <ScrollView
@@ -97,10 +104,10 @@ export default function ThemeShowcase() {
             marginBottom: spacing.md,
           }}
         >
-          THEME SHOWCASE
+          LAST SIGNAL
         </Text>
         <Text style={{ fontSize: fontSizes.body, color: theme.textSecondary }}>
-          Demostración completa del Design System de LastSignal
+          Theme Dashboard — Demostración del Design System
         </Text>
 
         <View
@@ -124,6 +131,33 @@ export default function ThemeShowcase() {
             trackColor={{ false: theme.bgTertiary, true: theme.primaryDim }}
             thumbColor={theme.primary}
           />
+          <TouchableOpacity
+  onPress={logout}
+  activeOpacity={0.8}
+  style={{
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: theme.dangerBg,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: theme.danger,
+  }}
+>
+  <Ionicons name="log-out-outline" size={18} color={theme.danger} />
+  <Text style={{
+    fontFamily: fonts.heading,
+    fontSize: fontSizes.body,
+    color: theme.danger,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  }}>
+    Cerrar sesión
+  </Text>
+</TouchableOpacity>
         </View>
       </View>
 
