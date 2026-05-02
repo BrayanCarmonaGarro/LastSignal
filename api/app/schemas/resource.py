@@ -1,36 +1,47 @@
+# app/schemas/resource.py
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
 from pydantic import BaseModel
-from app.models.resource import ResourceCategory, ResourceUnit
+from app.models.base_resource import ResourceCategory, ResourceUnit  # ← movido a base_resource
 from app.models.resource_log import ResourceLogType
 
 
-class ResourceCreate(BaseModel):
+class BaseResourceResponse(BaseModel):
+    id: UUID
     name: str
     category: ResourceCategory
     unit: ResourceUnit
-    current_amount: float
     min_threshold: float
+    is_critical: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ResourceCreate(BaseModel):
+    base_resource_id: UUID
+    current_amount: float
     is_critical: bool = False
 
 
 class ResourceUpdate(BaseModel):
-    name: Optional[str] = None
     current_amount: Optional[float] = None
-    min_threshold: Optional[float] = None
     is_critical: Optional[bool] = None
 
 
 class ResourceResponse(BaseModel):
     id: UUID
+    base_resource_id: UUID
+    current_amount: float
+    is_critical: bool
+    user_id: UUID
+
+    # Campos aplanados del join con base_resource
     name: str
     category: ResourceCategory
     unit: ResourceUnit
-    current_amount: float
     min_threshold: float
-    is_critical: bool
-    user_id: UUID
 
     class Config:
         from_attributes = True

@@ -1,3 +1,4 @@
+# api/app/core/config.py
 # Variables de entorno
 from pydantic_settings import BaseSettings
 
