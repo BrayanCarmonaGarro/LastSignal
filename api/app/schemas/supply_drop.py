@@ -1,19 +1,22 @@
+# app/schemas/supply_drop.py
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
+from app.schemas.base_resource import BaseResourceResponse
 from pydantic import BaseModel
 from app.models.supply_drop import SupplyDropStatus
 
 
 class SupplyDropItemCreate(BaseModel):
-    resource_id: UUID
+    base_resource_id: UUID
     amount: float
 
 
 class SupplyDropItemResponse(BaseModel):
     id: UUID
-    resource_id: UUID
+    base_resource_id: UUID
     amount: float
+    base_resource: BaseResourceResponse
 
     class Config:
         from_attributes = True

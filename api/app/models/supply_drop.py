@@ -1,3 +1,4 @@
+# Models/supply_drop.py
 import enum
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID

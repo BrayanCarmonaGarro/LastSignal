@@ -8,3 +8,4 @@ from app.models.supply_drop import SupplyDrop
 from app.models.supply_drop_item import SupplyDropItem
 from app.models.achievement import Achievement
 from app.models.user_achievement import UserAchievement
+from app.models.base_resource import BaseResource

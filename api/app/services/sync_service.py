@@ -2,9 +2,8 @@
 from typing import List
 from sqlalchemy.orm import Session
 from app.models.logbook import LogbookEntry, LifeFormCategory, DangerLevel, SyncStatus
-from app.models.resource import Resource, ResourceCategory, ResourceUnit
+from app.models.resource import Resource
 from app.models.resource_log import ResourceLog, ResourceLogType
-
 
 def process_sync_operations(operations: List[dict], user_id: str, db: Session) -> dict:
     """

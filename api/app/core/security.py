@@ -1,3 +1,4 @@
+# api/app/core/security.py
 # Validación tokens Keycloak
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -35,7 +36,10 @@ async def get_current_user(
             token,
             pem_key,
             algorithms=["RS256"],
-            options={"verify_aud": False},
+            options={
+                "verify_aud": False,
+                "verify_iss": False, # No verificamos el issuer porque Keycloak puede usar diferentes URLs internas/externas, pero hay que solucionar esto después
+            },
         )
         user_id: str = payload.get("sub")
         if user_id is None:
