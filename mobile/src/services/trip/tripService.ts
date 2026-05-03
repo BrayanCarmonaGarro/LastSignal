@@ -1,52 +1,24 @@
 //src/services/trip/tripService.ts
-import type { SupplyDrop, TripRecord } from "@/store/tripStore";
-
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
-const API_PREFIX = "/api/v1";
-
-import { useAuthStore } from "@/store/authStore";
-
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${BASE_URL}${API_PREFIX}${path}`;
-
-  const tokens = useAuthStore.getState().tokens;
-
-  //console.log('Para mostrar el token en consola (solo para desarrollo):', tokens);
-  //console.log(`[API] ${options?.method ?? 'GET'} ${url} (auth: ${!!tokens?.accessToken})`);
-  const res = await fetch(url, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(tokens?.accessToken && {
-        Authorization: `Bearer ${tokens.accessToken}`,
-      }),
-    },
-    ...options,
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `HTTP ${res.status}`);
-  }
-
-  return res.json() as Promise<T>;
-}
+import type { TripRecord } from "@/types/trip.types";
+import type { SupplyDrop } from "@/types/supply_drop.types";
+import { apiRequest } from "@/services/api/client";
 export const tripService = {
   // ── Supply Drops ────────────────────────────────────────────────────────────
 
   /** GET /supply-drops/available — suministros disponibles con GPS */
   getAvailableDrops: (): Promise<SupplyDrop[]> =>
-    request<SupplyDrop[]>("/supply-drops/available"),
+    apiRequest<SupplyDrop[]>("/supply-drops/available"),
 
   /** GET /supply-drops — todos (disponibles + recolectados) */
   getAllDrops: (): Promise<SupplyDrop[]> =>
-    request<SupplyDrop[]>("/supply-drops"),
+    apiRequest<SupplyDrop[]>("/supply-drops"),
 
   /**
    * POST /supply-drops/:id/collect
    * Marca un suministro como recolectado y lo asocia al viaje activo.
    */
   collectDrop: (dropId: string, tripId: string): Promise<SupplyDrop> =>
-    request<SupplyDrop>(`/supply-drops/${dropId}/collect`, {
+    apiRequest<SupplyDrop>(`/supply-drops/${dropId}/collect`, {
       method: "POST",
       body: JSON.stringify({ trip_id: tripId }),
     }),
@@ -61,7 +33,7 @@ export const tripService = {
     initialOxygen: number,
     destination?: string,
   ): Promise<TripRecord> =>
-    request<TripRecord>("/trips", {
+    apiRequest<TripRecord>("/trips", {
       method: "POST",
       body: JSON.stringify({ initial_oxygen: initialOxygen, destination }),
     }),
@@ -74,7 +46,7 @@ export const tripService = {
     tripId: string,
     oxygenConsumed: number,
   ): Promise<TripRecord> =>
-    request<TripRecord>(`/trips/${tripId}`, {
+    apiRequest<TripRecord>(`/trips/${tripId}`, {
       method: "PATCH",
       body: JSON.stringify({ oxygen_consumed: oxygenConsumed }),
     }),
@@ -84,12 +56,12 @@ export const tripService = {
    * El backend pone status=COMPLETED y ended_at=now().
    */
   completeTrip: (tripId: string): Promise<TripRecord> =>
-    request<TripRecord>(`/trips/${tripId}/complete`, { method: "POST" }),
+    apiRequest<TripRecord>(`/trips/${tripId}/complete`, { method: "POST" }),
 
   /** GET /trips/active — recupera el viaje activo si existe (útil al reabrir la app) */
   getActiveTrip: async (): Promise<TripRecord | null> => {
     try {
-      return await request<TripRecord>("/trips/active");
+      return await apiRequest<TripRecord>("/trips/active");
     } catch {
       return null;
     }
@@ -100,7 +72,7 @@ export const tripService = {
     longitude: number,
     items: Array<{ base_resource_id: string; amount: number }>, // ← cambiado
   ): Promise<SupplyDrop> =>
-    request<SupplyDrop>("/supply-drops", {
+    apiRequest<SupplyDrop>("/supply-drops", {
       method: "POST",
       body: JSON.stringify({ latitude, longitude, items }),
     }),

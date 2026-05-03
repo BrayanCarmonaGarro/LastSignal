@@ -27,10 +27,26 @@ class UsernameSetRequest(BaseModel):
         return bool(USERNAME_PATTERN.match(self.username))
 
 
+class ActiveTripSummary(BaseModel):
+    id: str
+    destination: Optional[str]
+    initial_oxygen: float
+    oxygen_consumed: float
+    started_at: str
+
+
+class ResourceCategoryGroup(BaseModel):
+    category: str
+    resources: list
+    critical_count: int
+
+
 class DashboardResponse(BaseModel):
     user: UserResponse
     total_logbook_entries: int
     total_resources: int
     critical_resources_below_threshold: int
-    active_trip: Optional[dict]
+    active_trip: Optional[ActiveTripSummary]
     recent_achievements: list
+    resource_groups: list[ResourceCategoryGroup]
+    recent_logbook_entries: list
