@@ -60,14 +60,28 @@ async def resolve_db_user(current_user: dict, db):
     keycloak_id = uuid.UUID(current_user["sub"])
     user = db.query(User).filter(User.id == keycloak_id).first()
 
+    token_display_name = current_user.get("name")
+    token_avatar_url   = current_user.get("picture")
+
     if not user:
         user = User(
             id=keycloak_id,
-            display_name=current_user.get("name"),
-            avatar_url=current_user.get("picture"),
+            display_name=token_display_name,
+            avatar_url=token_avatar_url,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+    else:
+        dirty = False
+        if token_display_name and user.display_name != token_display_name:
+            user.display_name = token_display_name
+            dirty = True
+        if token_avatar_url and user.avatar_url != token_avatar_url:
+            user.avatar_url = token_avatar_url
+            dirty = True
+        if dirty:
+            db.commit()
+            db.refresh(user)
 
     return user

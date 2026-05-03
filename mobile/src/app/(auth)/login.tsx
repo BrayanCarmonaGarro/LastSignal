@@ -21,7 +21,7 @@ import { useLogin } from '@/hooks/auth/useLogin';
 import { useLoginAnimations } from '@/hooks/useLoginAnimations';
 import { UsernameSetupScreen } from '@/components/auth/UsernameSetupScreen';
 import { GoogleLogo } from '@/components/ui/GoogleLogo';
-import { makeStyles } from './login.styles';
+import { makeStyles } from '@/styles/loginStyles';
 
 export default function LoginScreen() {
   const theme   = useTheme();

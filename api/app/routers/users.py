@@ -26,19 +26,13 @@ async def set_username(
 ):
     user = await resolve_db_user(current_user, db)
 
-    if user.username is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="El usuario ya tiene un nombre de usuario asignado",
-        )
-
     if not body.validate_format():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="El nombre de usuario solo puede contener letras, números y guiones bajos",
         )
 
-    existing = db.query(User).filter(User.username == body.username).first()
+    existing = db.query(User).filter(User.username == body.username, User.id != user.id).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

@@ -1,7 +1,8 @@
 // src/services/trip/supplyDropService.ts
 import { tripService } from '@/services/trip/tripService';
-import type { SupplyDrop } from '@/store/tripStore';
-import { resourcesApi, BaseResource } from '@/services/api/resources.api';
+import type { SupplyDrop } from '@/types/supply_drop.types';
+import type { BaseResource } from '@/types/resource.types';
+import { resourcesApi } from '@/services/api/resources.api';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
