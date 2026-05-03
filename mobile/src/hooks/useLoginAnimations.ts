@@ -1,92 +1,99 @@
-import { useEffect, useRef, useMemo, useState } from 'react';
-import { Animated, Dimensions, Easing } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
-function getTime() {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+export type Star = {
+  x:    number;
+  y:    number;
+  size: number;
+  anim: Animated.Value;
+};
+
+function makeStars(count: number): Star[] {
+  return Array.from({ length: count }, () => ({
+    x:    Math.random() * width,
+    y:    Math.random() * height,
+    size: Math.random() * 2 + 0.5,
+    anim: new Animated.Value(Math.random()),
+  }));
 }
 
 export function useLoginAnimations() {
-  const sweepAnim    = useRef(new Animated.Value(0)).current;
-  const pulseOpacity = useRef(new Animated.Value(0.7)).current;
-  const pulseScale   = useRef(new Animated.Value(1)).current;
-  const nebulaAnim   = useRef(new Animated.Value(0.5)).current;
-  const glowAnim     = useRef(new Animated.Value(0.4)).current;
-  const dotAnim      = useRef(new Animated.Value(1)).current;
-  const scanAnim     = useRef(new Animated.Value(0.15)).current;
+  const sweepAnim  = useRef(new Animated.Value(0)).current;
+  const pulseAnim  = useRef(new Animated.Value(0)).current;
+  const nebulaAnim = useRef(new Animated.Value(0)).current;
+  const glowAnim   = useRef(new Animated.Value(0.3)).current;
+  const dotAnim    = useRef(new Animated.Value(1)).current;
+  const scanAnim   = useRef(new Animated.Value(0)).current;
 
-  const [time, setTime] = useState(getTime);
-
-  const stars = useMemo(() =>
-    Array.from({ length: 70 }, () => ({
-      x:        Math.random() * width,
-      y:        Math.random() * height * 0.85,
-      size:     Math.random() * 2 + 0.5,
-      anim:     new Animated.Value(Math.random()),
-      duration: 1000 + Math.random() * 2500,
-      delay:    Math.random() * 4000,
-    })),
-  []);
+  const [stars] = useState<Star[]>(() => makeStars(60));
+  const [time, setTime]  = useState('');
 
   useEffect(() => {
-    const clockInterval = setInterval(() => setTime(getTime()), 30000);
-
-    const runSweep = () => {
-      sweepAnim.setValue(0);
-      Animated.timing(sweepAnim, {
-        toValue: 1,
-        duration: 3000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }).start(({ finished }) => { if (finished) runSweep(); });
+    const tick = () => {
+      const now = new Date();
+      const h = String(now.getUTCHours()).padStart(2, '0');
+      const m = String(now.getUTCMinutes()).padStart(2, '0');
+      setTime(`${h}:${m} UTC`);
     };
-    runSweep();
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
 
-    const runPulse = () => {
-      pulseOpacity.setValue(0.7);
-      pulseScale.setValue(1);
-      Animated.parallel([
-        Animated.timing(pulseOpacity, { toValue: 0,    duration: 2500, useNativeDriver: true }),
-        Animated.timing(pulseScale,   { toValue: 1.25, duration: 2500, useNativeDriver: true }),
-      ]).start(({ finished }) => { if (finished) runPulse(); });
-    };
-    runPulse();
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(sweepAnim, { toValue: 1, duration: 4000, useNativeDriver: true }),
+    ).start();
 
-    Animated.loop(Animated.sequence([
-      Animated.timing(nebulaAnim, { toValue: 1,   duration: 7000, useNativeDriver: true }),
-      Animated.timing(nebulaAnim, { toValue: 0.5, duration: 7000, useNativeDriver: true }),
-    ])).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+      ]),
+    ).start();
 
-    Animated.loop(Animated.sequence([
-      Animated.timing(glowAnim, { toValue: 1,   duration: 2000, useNativeDriver: true }),
-      Animated.timing(glowAnim, { toValue: 0.3, duration: 2000, useNativeDriver: true }),
-    ])).start();
+    Animated.timing(nebulaAnim, { toValue: 1, duration: 2000, useNativeDriver: true }).start();
 
-    Animated.loop(Animated.sequence([
-      Animated.timing(dotAnim, { toValue: 0.1, duration: 700, useNativeDriver: true }),
-      Animated.timing(dotAnim, { toValue: 1,   duration: 700, useNativeDriver: true }),
-    ])).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, { toValue: 1,   duration: 2500, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0.3, duration: 2500, useNativeDriver: true }),
+      ]),
+    ).start();
 
-    Animated.loop(Animated.sequence([
-      Animated.timing(scanAnim, { toValue: 0.85, duration: 1250, useNativeDriver: true }),
-      Animated.timing(scanAnim, { toValue: 0.15, duration: 1250, useNativeDriver: true }),
-    ])).start();
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(dotAnim, { toValue: 0.2, duration: 800,  useNativeDriver: true }),
+        Animated.timing(dotAnim, { toValue: 1,   duration: 800,  useNativeDriver: true }),
+      ]),
+    ).start();
 
-    const timeouts = stars.map((star) =>
-      setTimeout(() => {
-        Animated.loop(Animated.sequence([
-          Animated.timing(star.anim, { toValue: 0.08, duration: star.duration / 2, useNativeDriver: true }),
-          Animated.timing(star.anim, { toValue: 1,    duration: star.duration / 2, useNativeDriver: true }),
-        ])).start();
-      }, star.delay)
-    );
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, { toValue: 0.6, duration: 1500, useNativeDriver: true }),
+        Animated.timing(scanAnim, { toValue: 0,   duration: 1500, useNativeDriver: true }),
+      ]),
+    ).start();
 
-    return () => {
-      clearInterval(clockInterval);
-      timeouts.forEach(clearTimeout);
-    };
+    stars.forEach((star) => {
+      const loop = () => {
+        Animated.sequence([
+          Animated.timing(star.anim, {
+            toValue:         Math.random() * 0.5 + 0.1,
+            duration:        800 + Math.random() * 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(star.anim, {
+            toValue:         Math.random() * 0.8 + 0.2,
+            duration:        800 + Math.random() * 2000,
+            useNativeDriver: true,
+          }),
+        ]).start(({ finished }) => { if (finished) loop(); });
+      };
+      loop();
+    });
   }, []);
 
   const sweepRotation = sweepAnim.interpolate({
@@ -94,15 +101,15 @@ export function useLoginAnimations() {
     outputRange: ['0deg', '360deg'],
   });
 
-  return {
-    sweepRotation,
-    pulseOpacity,
-    pulseScale,
-    nebulaAnim,
-    glowAnim,
-    dotAnim,
-    scanAnim,
-    stars,
-    time,
-  };
+  const pulseOpacity = pulseAnim.interpolate({
+    inputRange:  [0, 0.5, 1],
+    outputRange: [0.8, 0.3, 0.8],
+  });
+
+  const pulseScale = pulseAnim.interpolate({
+    inputRange:  [0, 1],
+    outputRange: [0.95, 1.08],
+  });
+
+  return { sweepRotation, pulseOpacity, pulseScale, nebulaAnim, glowAnim, dotAnim, scanAnim, stars, time };
 }

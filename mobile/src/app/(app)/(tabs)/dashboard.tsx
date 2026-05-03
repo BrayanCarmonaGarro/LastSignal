@@ -1,7 +1,7 @@
 // src/app/(app)/dashboard.tsx
 // Pantalla de demostración del Design System con tokens temáticos - Borrar despues
 import React, { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Switch, useColorScheme } from 'react-native';
+import { ScrollView, View, Text, Image, StyleSheet, Switch, useColorScheme } from 'react-native';
 import {
   getTheme,
   palette,
@@ -80,12 +80,57 @@ export default function Dashboard() {
   const [lightMode, setLightMode] = useState(systemScheme === 'light');
   const theme = getTheme(lightMode ? 'light' : 'dark');
   const { logout } = useLogout();
+  const { user, dbUser } = useAuthStore();
 
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.bgPrimary }]}
       showsVerticalScrollIndicator={false}
     >
+      {/* DEBUG: datos del usuario — verificación de auth */}
+      <View style={{
+        margin:          spacing.lg,
+        padding:         spacing.lg,
+        backgroundColor: theme.bgSecondary,
+        borderRadius:    radii.md,
+        borderWidth:     1,
+        borderColor:     theme.borderDefault,
+        gap:             spacing.sm,
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          {dbUser?.avatar_url ? (
+            <Image
+              source={{ uri: dbUser.avatar_url }}
+              style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 1, borderColor: theme.primary }}
+            />
+          ) : null}
+          <View>
+            <Text style={{ fontFamily: fonts.heading, fontSize: fontSizes.h3, color: theme.primary }}>
+              {dbUser?.display_name ?? user?.name ?? '—'}
+            </Text>
+            <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.caption, color: theme.textData }}>
+              @{dbUser?.username ?? 'sin callsign'}
+            </Text>
+          </View>
+        </View>
+        {[
+          ['ID (Keycloak)',  dbUser?.id             ?? '—'],
+          ['Rol',            dbUser?.role            ?? '—'],
+          ['Nivel',          String(dbUser?.level    ?? '—')],
+          ['XP',             String(dbUser?.experience_pts ?? '—')],
+          ['Creado',         dbUser?.created_at ? new Date(dbUser.created_at).toLocaleDateString() : '—'],
+        ].map(([label, value]) => (
+          <View key={label} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.caption, color: theme.textMuted }}>
+              {label}
+            </Text>
+            <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.caption, color: theme.textData, flexShrink: 1, marginLeft: spacing.md, textAlign: 'right' }}>
+              {value}
+            </Text>
+          </View>
+        ))}
+      </View>
+
       {/* Header */}
       <View
         style={{

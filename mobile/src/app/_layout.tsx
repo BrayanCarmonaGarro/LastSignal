@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function RootLayout() {
-  const { user, isLoading, loadSession } = useAuthStore();
+  const { user, dbUser, isLoading, loadSession } = useAuthStore();
   const router   = useRouter();
   const segments = useSegments();
 
@@ -24,13 +24,15 @@ export default function RootLayout() {
     if (isLoading || !fontsLoaded) return;
 
     const inAuth = segments[0] === '(auth)';
+    const authenticated = !!user && !!dbUser?.username;
 
-    if (!user && !inAuth) {
-      router.replace('/(auth)/login');
-    } else if (user && inAuth) {
-      router.replace('/(app)/(tabs)/dashboard');
+    if (!authenticated) {
+      if (!inAuth) router.replace('/(auth)/login');
+      return;
     }
-  }, [user, isLoading, fontsLoaded, segments]);
+
+    if (inAuth) router.replace('/(app)/(tabs)/dashboard');
+  }, [user, dbUser, isLoading, fontsLoaded, segments]);
 
   return (
     <SafeAreaProvider>

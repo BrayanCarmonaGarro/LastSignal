@@ -14,8 +14,7 @@ class UserRole(str, enum.Enum):
 class User(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "users"
 
-    username = Column(String(80), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
+    username = Column(String(80), unique=True, nullable=True)
     role = Column(Enum(UserRole), nullable=False, default=UserRole.ASTRONAUT)
     display_name = Column(String(120))
     avatar_url = Column(String)
