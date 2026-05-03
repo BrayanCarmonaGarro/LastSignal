@@ -1,5 +1,7 @@
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.security import get_current_user, resolve_db_user
@@ -7,8 +9,16 @@ from app.models.logbook import LogbookEntry
 from app.models.resource import Resource
 from app.models.trip import Trip, TripStatus
 from app.models.user_achievement import UserAchievement
-from app.schemas.user import DashboardResponse, UserResponse
+from app.routers.resources import serialize_resource
 from app.schemas.achievement import UserAchievementResponse
+from app.schemas.logbook import LogbookEntryResponse
+from app.schemas.resource import ResourceResponse
+from app.schemas.user import (
+    ActiveTripSummary,
+    DashboardResponse,
+    ResourceCategoryGroup,
+    UserResponse,
+)
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -22,16 +32,54 @@ async def get_dashboard(
 
     total_logbook = db.query(LogbookEntry).filter(LogbookEntry.user_id == user.id).count()
 
-    resources = db.query(Resource).filter(Resource.user_id == user.id).all()
+    resources = (
+        db.query(Resource)
+        .options(joinedload(Resource.base_resource))
+        .filter(Resource.user_id == user.id)
+        .all()
+    )
     total_resources = len(resources)
     critical_below = sum(
-        1 for r in resources if r.is_critical and r.current_amount <= r.min_threshold
+        1 for r in resources if r.current_amount <= r.base_resource.min_threshold
     )
+
+    category_map: dict = defaultdict(list)
+    for r in resources:
+        category_map[r.base_resource.category.value].append(r)
+
+    resource_groups = [
+        ResourceCategoryGroup(
+            category=cat,
+            resources=[ResourceResponse(**serialize_resource(r)) for r in rs],
+            critical_count=sum(
+                1 for r in rs if r.current_amount <= r.base_resource.min_threshold
+            ),
+        )
+        for cat, rs in category_map.items()
+    ]
 
     active_trip = (
         db.query(Trip)
         .filter(Trip.user_id == user.id, Trip.status == TripStatus.ACTIVE)
         .first()
+    )
+
+    active_trip_summary = None
+    if active_trip:
+        active_trip_summary = ActiveTripSummary(
+            id=str(active_trip.id),
+            destination=active_trip.destination,
+            initial_oxygen=active_trip.initial_oxygen,
+            oxygen_consumed=active_trip.oxygen_consumed,
+            started_at=active_trip.started_at.isoformat(),
+        )
+
+    recent_logbook = (
+        db.query(LogbookEntry)
+        .filter(LogbookEntry.user_id == user.id)
+        .order_by(LogbookEntry.created_at.desc())
+        .limit(5)
+        .all()
     )
 
     recent_achievements = (
@@ -47,14 +95,12 @@ async def get_dashboard(
         total_logbook_entries=total_logbook,
         total_resources=total_resources,
         critical_resources_below_threshold=critical_below,
-        active_trip={
-            "id": str(active_trip.id),
-            "destination": active_trip.destination,
-            "initial_oxygen": active_trip.initial_oxygen,
-            "oxygen_consumed": active_trip.oxygen_consumed,
-            "started_at": active_trip.started_at.isoformat(),
-        } if active_trip else None,
+        active_trip=active_trip_summary,
         recent_achievements=[
             UserAchievementResponse.model_validate(ua) for ua in recent_achievements
+        ],
+        resource_groups=resource_groups,
+        recent_logbook_entries=[
+            LogbookEntryResponse.model_validate(e) for e in recent_logbook
         ],
     )
