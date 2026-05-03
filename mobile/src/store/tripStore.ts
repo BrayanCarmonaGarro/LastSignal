@@ -2,57 +2,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { TripRecord, TripStatus, Coordinates } from '@/types/trip.types';
+import type { SupplyDrop, SupplyDropStatus, SupplyDropItem } from '@/types/supply_drop.types';
 
-export type TripStatus = 'ACTIVE' | 'COMPLETED';
-export type SupplyDropStatus = 'AVAILABLE' | 'COLLECTED';
-
-export interface Coordinates {
-  latitude: number;
-  longitude: number;
-}
-
-export type ResourceCategory = 'VITAL' | 'FOOD' | 'EQUIPMENT' | 'MEDICAL' | 'FUEL';
-export type ResourceUnit = 'LITERS' | 'KILOGRAMS' | 'UNITS' | 'PERCENTAGE' | 'GRAMS' | 'CALORIES';
-
-export interface BaseResource {
-  id: string;
-  name: string;
-  category: ResourceCategory;
-  unit: ResourceUnit;
-  min_threshold: number;
-  is_critical: boolean;
-}
-
-export interface SupplyDropItem {
-  id: string;
-  base_resource_id: string;
-  amount: number;
-  base_resource: BaseResource;
-}
-
-export interface SupplyDrop {
-  id: string;
-  latitude: number;
-  longitude: number;
-  status: SupplyDropStatus;
-  trip_id: string | null;
-  collected_by: string | null;
-  collected_at: string | null;
-  created_at: string;
-  items: SupplyDropItem[];
-}
-
-export interface TripRecord {
-  id: string;
-  destination: string | null;
-  notes: string | null;
-  started_at: string;
-  ended_at: string | null;
-  initial_oxygen: number;
-  oxygen_consumed: number;
-  status: TripStatus;
-  user_id: string;
-}
+export type { TripRecord, TripStatus, Coordinates, SupplyDrop, SupplyDropStatus, SupplyDropItem };
 
 interface OxygenState {
   level: number;
@@ -70,7 +23,7 @@ interface TripStoreState {
   setActiveTrip: (trip: TripRecord | null) => void;
   setSupplyDrops: (drops: SupplyDrop[]) => void;
   markDropCollected: (dropId: string, tripId: string) => void;
-  updateDrop: (drop: SupplyDrop) => void;          // ← nuevo
+  updateDrop: (drop: SupplyDrop) => void;
   addRoutePoint: (coords: Coordinates) => void;
   clearRoute: () => void;
   tickOxygen: () => void;
