@@ -23,8 +23,7 @@ CREATE TYPE trip_status_enum AS ENUM ('ACTIVE', 'COMPLETED');
 
 CREATE TABLE IF NOT EXISTS users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username        VARCHAR(80)  UNIQUE NOT NULL,
-    password_hash   VARCHAR(255) NOT NULL,
+    username        VARCHAR(80)  UNIQUE,
     role            user_role_enum NOT NULL DEFAULT 'ASTRONAUT',
     display_name    VARCHAR(120),
     avatar_url      TEXT,
@@ -145,22 +144,20 @@ CREATE TABLE IF NOT EXISTS user_achievements (
 -- DATOS DE PRUEBA
 -- =============================================================
 
-INSERT INTO users (id, username, password_hash, role, display_name, level, experience_pts)
+INSERT INTO users (id, username, role, display_name, level, experience_pts)
 VALUES (
     'a1000000-0000-0000-0000-000000000001',
     'nova',
-    '$2b$12$placeholder_hash_not_used_keycloak_handles_auth',
     'ASTRONAUT',
     'Cdr. Nova',
     3,
     420
 );
 
-INSERT INTO users (id, username, password_hash, role, display_name, level, experience_pts)
+INSERT INTO users (id, username, role, display_name, level, experience_pts)
 VALUES (
     'a1000000-0000-0000-0000-000000000002',
     'houston',
-    '$2b$12$placeholder_hash_not_used_keycloak_handles_auth',
     'ADMIN',
     'Houston Control',
     1,

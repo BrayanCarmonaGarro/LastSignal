@@ -1,5 +1,6 @@
 # api/app/core/security.py
 # Validación tokens Keycloak
+import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -52,18 +53,18 @@ async def get_current_user(
 async def resolve_db_user(current_user: dict, db):
     """
     Dado el payload del token de Keycloak, busca o crea el usuario en PostgreSQL.
-    Retorna el objeto User de la DB con su UUID real.
+    Usa el sub del JWT como UUID del usuario, garantizando 1:1 con Keycloak.
     """
     from app.models.user import User
 
-    username = current_user.get("preferred_username")
-    user = db.query(User).filter(User.username == username).first()
+    keycloak_id = uuid.UUID(current_user["sub"])
+    user = db.query(User).filter(User.id == keycloak_id).first()
 
     if not user:
         user = User(
-            username=username,
-            password_hash="keycloak",
-            display_name=current_user.get("name", username),
+            id=keycloak_id,
+            display_name=current_user.get("name"),
+            avatar_url=current_user.get("picture"),
         )
         db.add(user)
         db.commit()

@@ -1,0 +1,185 @@
+// =============================================================
+// LastSignal — Database Schema
+// PostgreSQL
+// =============================================================
+
+// ENUMS
+
+enum user_role_enum {
+  ASTRONAUT
+  ADMIN
+}
+
+enum life_form_category_enum {
+  ANIMAL
+  PLANT
+  RESOURCE
+  MINERAL
+  FUNGI
+  UNKNOWN_ORGANISM
+}
+
+enum danger_level_enum {
+  DANGEROUS
+  FRIENDLY
+  UNKNOWN
+}
+
+enum sync_status_enum {
+  SYNCED
+  PENDING
+  FAILED
+}
+
+enum resource_category_enum {
+  VITAL
+  FOOD
+  EQUIPMENT
+  MEDICAL
+  FUEL
+}
+
+enum resource_unit_enum {
+  LITERS
+  KILOGRAMS
+  UNITS
+  PERCENTAGE
+  GRAMS
+  CALORIES
+}
+
+enum resource_log_type_enum {
+  INTAKE
+  EXPENSE
+}
+
+enum supply_drop_status_enum {
+  AVAILABLE
+  COLLECTED
+}
+
+enum trip_status_enum {
+  ACTIVE
+  COMPLETED
+}
+
+// TABLES
+
+Table users {
+  id             uuid       [pk, default: `gen_random_uuid()`]
+  username       varchar(80) [unique, not null]
+  password_hash  varchar(255) [not null]
+  role           user_role_enum [not null, default: "ASTRONAUT"]
+  display_name   varchar(120)
+  avatar_url     text
+  level          integer    [not null, default: 1]
+  experience_pts integer    [not null, default: 0]
+  created_at     timestamp  [default: `NOW()`]
+  updated_at     timestamp  [default: `NOW()`]
+}
+
+Table logbook_entries {
+  id               uuid      [pk, default: `gen_random_uuid()`]
+  photo_url        text      [not null]
+  description      text      [not null]
+  classification   life_form_category_enum [not null]
+  danger_level     danger_level_enum [not null, default: "UNKNOWN"]
+  audio_url        text
+  ai_confidence    float
+  ai_raw_response  text
+  is_ai_reviewed   boolean   [not null, default: false]
+  sync_status      sync_status_enum [not null, default: "SYNCED"]
+  is_downloaded    boolean   [not null, default: false]
+  downloaded_until timestamp
+  created_at       timestamp [default: `NOW()`]
+  updated_at       timestamp [default: `NOW()`]
+  user_id          uuid      [not null, ref: > users.id]
+}
+
+Table life_form_searches {
+  id               uuid      [pk, default: `gen_random_uuid()`]
+  photo_url        text      [not null]
+  matched_entry_id uuid      [ref: > logbook_entries.id]
+  created_at       timestamp [default: `NOW()`]
+  updated_at       timestamp [default: `NOW()`]
+  user_id          uuid      [not null, ref: > users.id]
+}
+
+Table base_resources {
+  id            uuid      [pk, default: `gen_random_uuid()`]
+  name          varchar(120) [not null]
+  category      resource_category_enum [not null]
+  unit          resource_unit_enum [not null]
+  min_threshold float     [not null]
+  is_critical   boolean   [not null, default: false]
+  created_at    timestamp [default: `NOW()`]
+}
+
+Table resources {
+  id               uuid      [pk, default: `gen_random_uuid()`]
+  base_resource_id uuid      [not null, ref: > base_resources.id]
+  current_amount   float     [not null]
+  is_critical      boolean   [not null, default: false]
+  created_at       timestamp [default: `NOW()`]
+  updated_at       timestamp [default: `NOW()`]
+  user_id          uuid      [not null, ref: > users.id]
+}
+
+Table trips {
+  id              uuid      [pk, default: `gen_random_uuid()`]
+  destination     varchar(255)
+  notes           text
+  started_at      timestamp [not null, default: `NOW()`]
+  ended_at        timestamp
+  initial_oxygen  float     [not null]
+  oxygen_consumed float     [not null, default: 0]
+  status          trip_status_enum [not null, default: "ACTIVE"]
+  created_at      timestamp [default: `NOW()`]
+  updated_at      timestamp [default: `NOW()`]
+  user_id         uuid      [not null, ref: > users.id]
+}
+
+Table resource_logs {
+  id          uuid      [pk, default: `gen_random_uuid()`]
+  type        resource_log_type_enum [not null]
+  amount      float     [not null]
+  reason      varchar(255)
+  created_at  timestamp [default: `NOW()`]
+  updated_at  timestamp [default: `NOW()`]
+  resource_id uuid      [not null, ref: > resources.id]
+  trip_id     uuid      [ref: > trips.id]
+}
+
+Table supply_drops {
+  id           uuid      [pk, default: `gen_random_uuid()`]
+  latitude     float     [not null]
+  longitude    float     [not null]
+  status       supply_drop_status_enum [not null, default: "AVAILABLE"]
+  collected_at timestamp
+  created_at   timestamp [default: `NOW()`]
+  updated_at   timestamp [default: `NOW()`]
+  trip_id      uuid      [ref: > trips.id]
+  collected_by uuid      [ref: > users.id]
+}
+
+Table supply_drop_items {
+  id               uuid  [pk, default: `gen_random_uuid()`]
+  amount           float [not null]
+  supply_drop_id   uuid  [not null, ref: > supply_drops.id]
+  base_resource_id uuid  [not null, ref: > base_resources.id]
+}
+
+Table achievements {
+  id          uuid         [pk, default: `gen_random_uuid()`]
+  key         varchar(80)  [unique, not null]
+  name        varchar(120) [not null]
+  description text
+  icon_url    text
+}
+
+Table user_achievements {
+  id             uuid      [pk, default: `gen_random_uuid()`]
+  earned_at      timestamp [default: `NOW()`]
+  user_id        uuid      [not null, ref: > users.id]
+  achievement_id uuid      [not null, ref: > achievements.id]
+}
