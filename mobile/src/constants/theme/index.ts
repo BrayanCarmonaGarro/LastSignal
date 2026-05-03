@@ -28,6 +28,10 @@ export { shadows } from './tokens/shadows';
 // Animación
 export { animation } from './tokens/animation';
 
+// Tokens de pantalla
+export { loginDarkTokens, loginLightTokens, getLoginTheme } from './screens/login';
+export type { LoginThemeTokens } from './screens/login';
+
 // Colores de dominio
 export { classificationColors } from './domain/classifications';
 export type { ClassificationKey, ClassificationColors } from './domain/classifications';
