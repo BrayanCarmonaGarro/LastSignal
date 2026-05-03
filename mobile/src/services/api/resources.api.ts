@@ -1,29 +1,5 @@
-// src/services/api/resources.api.ts
-import { useAuthStore } from '@/store/authStore';
-
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
-const API_PREFIX = '/api/v1';
-
-async function request<T>(path: string): Promise<T> {
-  const url = `${BASE_URL}${API_PREFIX}${path}`;
-  const tokens = useAuthStore.getState().tokens;
-
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(tokens?.accessToken && {
-        Authorization: `Bearer ${tokens.accessToken}`,
-      }),
-    },
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.detail ?? `HTTP ${res.status}`);
-  }
-
-  return res.json() as Promise<T>;
-}
+// mobile/src/services/api/resources.api.ts
+import { apiRequest } from './client';
 
 export interface Resource {
   id: string;
@@ -45,13 +21,9 @@ export interface BaseResource {
 }
 
 export const resourcesApi = {
-  getAll: (): Promise<Resource[]> => {
-    console.log('[resourcesApi] GET /resources');
-    return request<Resource[]>('/resources');
-  },
+  getAll: (): Promise<Resource[]> =>
+    apiRequest<Resource[]>('/resources'),
 
-  getBaseResources: (): Promise<BaseResource[]> => {
-    console.log('[resourcesApi] GET /resources/base');
-    return request<BaseResource[]>('/resources/base');
-  },
+  getBaseResources: (): Promise<BaseResource[]> =>
+    apiRequest<BaseResource[]>('/resources/base'),
 };

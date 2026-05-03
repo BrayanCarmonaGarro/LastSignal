@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { KeycloakUser, KeycloakTokens, parseJwt, refreshAccessToken } from '@/services/auth/keycloak';
+import type { DbUserProfile } from '@/services/api/users.api';
 
 const KEYS = {
   accessToken:  'ls_access_token',
@@ -11,9 +12,12 @@ const KEYS = {
 
 interface AuthState {
   user:         KeycloakUser | null;
+  dbUser:       DbUserProfile | null;
   tokens:       KeycloakTokens | null;
   isLoading:    boolean;
   setSession:   (tokens: KeycloakTokens) => Promise<void>;
+  setDbUser:    (dbUser: DbUserProfile) => void;
+  setLoading:   (loading: boolean) => void;
   clearSession: () => Promise<void>;
   loadSession:  () => Promise<void>;
   refresh:      () => Promise<boolean>;
@@ -21,6 +25,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user:      null,
+  dbUser:    null,
   tokens:    null,
   isLoading: true,
 
@@ -32,11 +37,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ user, tokens });
   },
 
+  setDbUser:  (dbUser)   => set({ dbUser }),
+  setLoading: (loading)  => set({ isLoading: loading }),
+
   clearSession: async () => {
     await SecureStore.deleteItemAsync(KEYS.accessToken);
     await SecureStore.deleteItemAsync(KEYS.refreshToken);
     await SecureStore.deleteItemAsync(KEYS.idToken);
-    set({ user: null, tokens: null });
+    set({ user: null, dbUser: null, tokens: null });
   },
 
   loadSession: async () => {
@@ -45,11 +53,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const refreshToken = await SecureStore.getItemAsync(KEYS.refreshToken);
       const idToken      = await SecureStore.getItemAsync(KEYS.idToken);
 
-      if (accessToken && refreshToken && idToken) {
-        const user = parseJwt(idToken);
-        set({ user, tokens: { accessToken, refreshToken, idToken }, isLoading: false });
-      } else {
+      if (!accessToken || !refreshToken || !idToken) {
         set({ isLoading: false });
+        return;
+      }
+
+      const user = parseJwt(idToken);
+      set({ user, tokens: { accessToken, refreshToken, idToken } });
+
+      const { usersApi } = await import('@/services/api/users.api');
+
+      try {
+        const dbUser = await usersApi.getMe();
+        set({ dbUser, isLoading: false });
+      } catch {
+        const ok = await get().refresh();
+        if (ok) {
+          try {
+            const dbUser = await usersApi.getMe();
+            set({ dbUser, isLoading: false });
+          } catch {
+            set({ isLoading: false });
+          }
+        } else {
+          set({ isLoading: false });
+        }
       }
     } catch {
       set({ isLoading: false });
