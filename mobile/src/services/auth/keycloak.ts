@@ -1,6 +1,9 @@
 // mobile/src/services/auth/keycloak.ts
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
+import type { KeycloakTokens, KeycloakUser } from '@/types/auth.types';
+
+export type { KeycloakTokens, KeycloakUser };
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -25,20 +28,6 @@ export const authRequestConfig: AuthSession.AuthRequestConfig = {
   }),
   extraParams: { kc_idp_hint: 'google' },
 };
-
-export interface KeycloakTokens {
-  accessToken:  string;
-  refreshToken: string;
-  idToken:      string;
-}
-
-export interface KeycloakUser {
-  sub:               string;
-  email:             string;
-  name:              string;
-  preferred_username: string;
-  picture?:          string;
-}
 
 export function parseJwt(token: string): KeycloakUser {
   const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
