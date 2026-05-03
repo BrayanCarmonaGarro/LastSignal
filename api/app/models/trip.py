@@ -1,3 +1,4 @@
+# Models/trip.py
 import enum
 from datetime import datetime
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, String, Text

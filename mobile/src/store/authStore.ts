@@ -1,4 +1,4 @@
-// Zustand - sesión usuario
+// mobile/src/store/authStore.ts
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { KeycloakUser, KeycloakTokens, parseJwt, refreshAccessToken } from '@/services/auth/keycloak';

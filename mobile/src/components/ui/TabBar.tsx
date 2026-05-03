@@ -4,13 +4,13 @@ import {
   View,
   TouchableOpacity,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { Text } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -40,6 +40,7 @@ const TAB_CONFIG: Record<string, { iconActive: IoniconName; iconInactive: Ionico
 export default function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors, spacing, layout, fonts, fontSizes, borderWidths, radii, shadows } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets(); // 🔥 clave
 
   const visibleRoutes = state.routes.filter((r) => TAB_CONFIG[r.name]);
   const leftRoutes  = visibleRoutes.slice(0, 2);
@@ -106,8 +107,8 @@ export default function TabBar({ state, descriptors, navigation }: BottomTabBarP
           backgroundColor: colors.bgSecondary,
           borderTopColor: colors.borderDefault,
           borderTopWidth: borderWidths.thin,
-          height: layout.tabBarHeight + (Platform.OS === 'ios' ? 20 : 0),
-          paddingBottom: Platform.OS === 'ios' ? 20 : spacing.sm,
+          height: layout.tabBarHeight + insets.bottom, // 🔥 ajusta altura real
+          paddingBottom: insets.bottom > 0 ? insets.bottom : spacing.sm, // 🔥 evita solaparse
         },
       ]}
     >
@@ -125,6 +126,7 @@ export default function TabBar({ state, descriptors, navigation }: BottomTabBarP
             {
               backgroundColor: colors.primary,
               borderRadius: radii.full,
+              marginBottom: insets.bottom > 0 ? insets.bottom : 16, // 🔥 ajustado
               ...shadows.md,
             },
           ]}
@@ -168,6 +170,5 @@ const styles = StyleSheet.create({
     height: 58,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
   },
 });

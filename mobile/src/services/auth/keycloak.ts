@@ -1,4 +1,4 @@
-// OAuth2 con expo-auth-session
+// mobile/src/services/auth/keycloak.ts
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import type { KeycloakTokens, KeycloakUser } from '@/types/auth.types';

@@ -1,7 +1,9 @@
+// src/app/_layout.tsx
 import { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useFonts } from 'expo-font';
 import { useAuthStore } from '@/store/authStore';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function RootLayout() {
   const { user, isLoading, loadSession } = useAuthStore();
@@ -30,5 +32,9 @@ export default function RootLayout() {
     }
   }, [user, isLoading, fontsLoaded, segments]);
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </SafeAreaProvider>
+  );
 }
