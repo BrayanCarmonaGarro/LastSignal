@@ -38,3 +38,13 @@ export interface DashboardResourceGroup {
   resources: DashboardResource[];
   critical_count: number;
 }
+
+export type ResourceStatus = 'CRITICAL' | 'LOW' | 'NORMAL';
+
+export interface UIResource extends Resource {
+  percentage: number;
+  status: ResourceStatus;
+  trend: 'up' | 'down';
+  displayUnit: string;
+  filledBlocks: number;
+}
