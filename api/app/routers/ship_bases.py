@@ -9,6 +9,7 @@ from app.core.security import get_current_user, resolve_db_user
 from app.models.ship_base import ShipBase
 from app.models.user import User
 from app.schemas.ship_base import ShipBaseCreateRequest, ShipBaseResponse
+from app.services.base_storage_service import initialize_base_storage
 
 router = APIRouter(prefix="/ship-bases", tags=["Bases de Nave"])
 
@@ -35,6 +36,7 @@ async def create_ship_base(
     user.ship_base_id = new_base.id
     db.commit()
     db.refresh(new_base)
+    initialize_base_storage(db, new_base.id)
     return new_base
 
 

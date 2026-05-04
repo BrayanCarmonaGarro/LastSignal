@@ -29,8 +29,7 @@ export interface DashboardResource {
   unit: ResourceUnit;
   current_amount: number;
   min_threshold: number;
-  is_critical: boolean;
-  user_id: string;
+  ship_base_id: string;
 }
 
 export interface DashboardResourceGroup {
