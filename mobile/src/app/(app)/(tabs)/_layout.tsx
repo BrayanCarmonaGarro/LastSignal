@@ -2,6 +2,7 @@ import { Animated, View, StyleSheet, useWindowDimensions } from 'react-native';
 import { Tabs } from 'expo-router';
 import TabBar from '@/components/ui/TabBar';
 import { SwipeTabsProvider, useSwipeTabsGesture } from '@/components/ui/SwipeTabsGesture';
+import { PullToRefreshIndicator } from '@/components/ui/PullToRefreshIndicator';
 import { useTheme } from '@/constants/theme';
 
 import DashboardScreen from './dashboard';
@@ -12,7 +13,7 @@ import TripsScreen     from './trips/index';
 const SCREENS = [DashboardScreen, LogbookScreen, ResourcesScreen, TripsScreen] as const;
 
 function TabsContent() {
-  const { pageOffset, panHandlers } = useSwipeTabsGesture();
+  const { pageOffset, pullOffset, panHandlers } = useSwipeTabsGesture();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
 
@@ -20,6 +21,7 @@ function TabsContent() {
     <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       {/* Pager area — fills all space above TabBar */}
       <View style={{ flex: 1, overflow: 'hidden' }} {...panHandlers}>
+        <PullToRefreshIndicator pullOffset={pullOffset} />
         {SCREENS.map((Screen, index) => {
           const translateX = pageOffset.interpolate({
             inputRange:  [index - 1, index, index + 1],

@@ -1,5 +1,5 @@
 // src/app/(app)/(tabs)/trips/index.tsx
-import React from "react";
+import React, { useEffect } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { useTripsScreen } from "@/hooks/trip/useTripsScreen";
 import { useTrip } from '@/hooks/trip/useTrip';
 import { useOxygen } from '@/hooks/trip/useOxygen';
 import { useSupplies } from '@/hooks/trip/useSupplies';
+import { useSwipeTabsGesture } from '@/components/ui/SwipeTabsGesture';
+import { TAB_ORDER } from '@/hooks/useSwipeTabsGesture.utils';
 import { OxygenBar } from '@/components/trips/OxygenBar';
 import { SupplyCard } from '@/components/trips/SupplyCard';
 import { MapMarker } from '@/components/trips/markers/MapMarker';
@@ -44,6 +46,7 @@ const DARK_MAP_STYLE = [
 
 export default function TripsIndexScreen() {
   const insets = useSafeAreaInsets();
+  const { registerRefreshHandler } = useSwipeTabsGesture();
 
   const {
     mapRef,
@@ -69,6 +72,10 @@ export default function TripsIndexScreen() {
     error,
     refresh,
   } = supplies;
+
+  useEffect(() => {
+    registerRefreshHandler(TAB_ORDER.indexOf('trips'), refresh);
+  }, [refresh, registerRefreshHandler]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
