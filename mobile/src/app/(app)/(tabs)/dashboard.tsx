@@ -6,10 +6,13 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
+import { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/constants/theme";
 import { useDashboard } from "@/hooks/dashboard/useDashboard";
+import { useSwipeTabsGesture } from "@/components/ui/SwipeTabsGesture";
+import { TAB_ORDER } from "@/hooks/useSwipeTabsGesture.utils";
 import { makeStyles } from "./dashboard.styles";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { CriticalResourceBar } from "@/components/dashboard/CriticalResourceBar";
@@ -23,6 +26,8 @@ export default function DashboardScreen() {
   const theme = useTheme();
   const { colors, iconSizes } = theme;
   const s = makeStyles(theme);
+
+  const { registerRefreshHandler } = useSwipeTabsGesture();
 
   const {
     router,
@@ -48,6 +53,10 @@ export default function DashboardScreen() {
     setProfileView,
     setEditUsername,
   } = useDashboard();
+
+  useEffect(() => {
+    registerRefreshHandler(TAB_ORDER.indexOf("dashboard"), refresh);
+  }, [refresh, registerRefreshHandler]);
 
   if (isLoading && !data) {
     return <DashboardSkeleton />;
