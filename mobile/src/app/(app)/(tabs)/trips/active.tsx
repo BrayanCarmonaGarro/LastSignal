@@ -57,7 +57,10 @@ export default function ActiveTripScreen() {
   const { level, oxygenStatus, minutesRemaining, isConsuming } = useOxygen();
   const { supplyDrops } = useSupplies();
   const routePoints = useTripStore((s) => s.routePoints);
-  const baseCoordinate = routePoints[0] ?? null;
+  const baseCoordinate = routePoints[0] ?? null; // Cambiar por el del usuario
+
+  const waypoints = useTripStore((s) => s.waypoints);
+  const dangerZones = useTripStore((s) => s.dangerZones);
 
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
@@ -205,6 +208,27 @@ export default function ActiveTripScreen() {
             }}
           />
         )}
+
+        {waypoints.map((wp, index) => (
+          <WaypointMarker
+            key={wp.id}
+            coordinate={{ latitude: wp.latitude, longitude: wp.longitude }}
+            index={index + 1}
+            label={wp.name ?? undefined}
+            visited={wp.status === "REACHED"}
+            onPress={handleWaypointPress}
+          />
+        ))}
+      
+        {dangerZones.map((dz) => (
+          <DangerZoneMarker
+            key={dz.id}
+            coordinate={{ latitude: dz.latitude, longitude: dz.longitude }}
+            label={dz.description ?? undefined}
+            severity={dz.severity.toLowerCase() as "low" | "medium" | "high"}
+            onPress={handleDangerZonePress}
+          />
+        ))}
       </MapView>
 
       <View style={[styles.hudTop, { paddingTop: insets.top + 8 }]}>

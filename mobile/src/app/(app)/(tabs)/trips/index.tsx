@@ -207,10 +207,10 @@ export default function TripsIndexScreen() {
               latitudeDelta: 0.05,
               longitudeDelta: 0.05,
             }}
-          >
+          > {/*
             {supplyDrops.map((drop) => (
               <MapMarker key={drop.id} supply={drop} onPress={handleDropPress} />
-            ))}
+            ))}*/}
           </MapView>
         ) : (
           <>
