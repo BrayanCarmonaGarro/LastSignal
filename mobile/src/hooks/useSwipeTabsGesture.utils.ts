@@ -1,3 +1,4 @@
+/*
 import { Animated } from "react-native";
 
 export const TAB_ORDER = [
@@ -63,3 +64,4 @@ export const getSwipeTargetIndex = ({
   if (goRight && !atLeft) return currentIndex - 1;
   return currentIndex;
 };
+*/
