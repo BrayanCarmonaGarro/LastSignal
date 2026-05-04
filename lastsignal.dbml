@@ -63,19 +63,40 @@ enum trip_status_enum {
   COMPLETED
 }
 
+enum waypoint_status_enum {
+  PENDING
+  REACHED
+}
+
+enum danger_severity_enum {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 // TABLES
 
+Table ship_bases {
+  id         uuid      [pk, default: `gen_random_uuid()`]
+  name       varchar(120)
+  latitude   float     [not null]
+  longitude  float     [not null]
+  created_at timestamp [default: `NOW()`]
+  updated_at timestamp [default: `NOW()`]
+}
+
 Table users {
-  id             uuid       [pk, default: `gen_random_uuid()`]
-  username       varchar(80) [unique, not null]
+  id             uuid         [pk, default: `gen_random_uuid()`]
+  username       varchar(80)  [unique, not null]
   password_hash  varchar(255) [not null]
   role           user_role_enum [not null, default: "ASTRONAUT"]
   display_name   varchar(120)
   avatar_url     text
-  level          integer    [not null, default: 1]
-  experience_pts integer    [not null, default: 0]
-  created_at     timestamp  [default: `NOW()`]
-  updated_at     timestamp  [default: `NOW()`]
+  level          integer      [not null, default: 1]
+  experience_pts integer      [not null, default: 0]
+  ship_base_id   uuid         [ref: > ship_bases.id]
+  created_at     timestamp    [default: `NOW()`]
+  updated_at     timestamp    [default: `NOW()`]
 }
 
 Table logbook_entries {
@@ -115,14 +136,22 @@ Table base_resources {
   created_at    timestamp [default: `NOW()`]
 }
 
-Table resources {
+Table inventory_resources {
   id               uuid      [pk, default: `gen_random_uuid()`]
   base_resource_id uuid      [not null, ref: > base_resources.id]
   current_amount   float     [not null]
-  is_critical      boolean   [not null, default: false]
   created_at       timestamp [default: `NOW()`]
   updated_at       timestamp [default: `NOW()`]
   user_id          uuid      [not null, ref: > users.id]
+}
+
+Table base_storage {
+  id               uuid      [pk, default: `gen_random_uuid()`]
+  base_resource_id uuid      [not null, ref: > base_resources.id]
+  current_amount   float     [not null]
+  created_at       timestamp [default: `NOW()`]
+  updated_at       timestamp [default: `NOW()`]
+  ship_base_id     uuid      [not null, ref: > ship_bases.id]
 }
 
 Table trips {
@@ -139,15 +168,37 @@ Table trips {
   user_id         uuid      [not null, ref: > users.id]
 }
 
-Table resource_logs {
+Table trip_waypoints {
+  id         uuid      [pk, default: `gen_random_uuid()`]
+  name       varchar(255)
+  latitude   float     [not null]
+  longitude  float     [not null]
+  status     waypoint_status_enum [not null, default: "PENDING"]
+  reached_at timestamp
+  created_at timestamp [default: `NOW()`]
+  trip_id    uuid      [not null, ref: > trips.id]
+}
+
+Table trip_danger_zones {
   id          uuid      [pk, default: `gen_random_uuid()`]
-  type        resource_log_type_enum [not null]
-  amount      float     [not null]
-  reason      varchar(255)
+  description varchar(255)
+  latitude    float     [not null]
+  longitude   float     [not null]
+  severity    danger_severity_enum [not null, default: "MEDIUM"]
   created_at  timestamp [default: `NOW()`]
-  updated_at  timestamp [default: `NOW()`]
-  resource_id uuid      [not null, ref: > resources.id]
-  trip_id     uuid      [ref: > trips.id]
+  trip_id     uuid      [not null, ref: > trips.id]
+}
+
+Table resource_logs {
+  id                    uuid      [pk, default: `gen_random_uuid()`]
+  type                  resource_log_type_enum [not null]
+  amount                float     [not null]
+  reason                varchar(255)
+  created_at            timestamp [default: `NOW()`]
+  updated_at            timestamp [default: `NOW()`]
+  inventory_resource_id uuid      [ref: > inventory_resources.id]
+  base_storage_id       uuid      [ref: > base_storage.id]
+  trip_id               uuid      [ref: > trips.id]
 }
 
 Table supply_drops {

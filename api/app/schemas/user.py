@@ -14,6 +14,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str]
     level: int
     experience_pts: int
+    ship_base_id: Optional[str] = None
     created_at: datetime
 
     class Config:

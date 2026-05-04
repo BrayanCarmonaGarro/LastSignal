@@ -8,6 +8,7 @@ import {
   Animated,
 } from 'react-native';
 import type { SupplyDrop } from '@/store/tripStore';
+import { useTheme } from '@/constants/theme';
 
 interface SupplyCardProps {
   supply: SupplyDrop;
@@ -27,8 +28,183 @@ export function SupplyCard({
   onCollect,
   onNavigate,
 }: SupplyCardProps) {
+  const { colors, spacing, radii } = useTheme();
   const isCollected = supply.status === 'COLLECTED';
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  
+  const dynamicStyles = {
+    wrapper: {
+      marginBottom: spacing.md,
+    } as const,
+    card: {
+      backgroundColor: colors.bgPrimary,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: `${colors.oxygen}15`,
+      flexDirection: 'row' as const,
+      overflow: 'hidden' as const,
+    } as const,
+    cardCollected: {
+      borderColor: `${colors.success}15`,
+      opacity: 0.75,
+    } as const,
+    accent: {
+      width: 4,
+    } as const,
+    accentPending: {
+      backgroundColor: colors.oxygen,
+    } as const,
+    accentCollected: {
+      backgroundColor: colors.success,
+    } as const,
+    content: {
+      flex: 1,
+      padding: spacing.md,
+      gap: spacing.md,
+    } as const,
+    topRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'flex-start' as const,
+      gap: spacing.md,
+    } as const,
+    iconWrapper: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.md,
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+    } as const,
+    icon: {
+      fontSize: 18,
+    } as const,
+    titleBlock: {
+      flex: 1,
+      gap: spacing.xs,
+      paddingRight: spacing.xs,
+    } as const,
+    title: {
+      color: colors.textPrimary,
+      fontSize: 15,
+      fontWeight: '700',
+    } as const,
+    distanceRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center',
+      gap: 3,
+    } as const,
+    distanceDot: {
+      color: colors.oxygen,
+      fontSize: 10,
+    } as const,
+    distanceText: {
+      color: colors.textSecondary,
+      fontSize: 12,
+    } as const,
+    collectedAt: {
+      color: `${colors.success}55`,
+      fontSize: 11,
+    } as const,
+    rightBlock: {
+      alignItems: 'flex-end' as const,
+      justifyContent: 'space-between',
+      minWidth: 50,
+      gap: spacing.xs,
+    } as const,
+    badge: {
+      borderRadius: radii.md,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderWidth: 1,
+    } as const,
+    badgePending: {
+      backgroundColor: `${colors.oxygen}10`,
+      borderColor: `${colors.oxygen}40`,
+    } as const,
+    badgeCollected: {
+      backgroundColor: `${colors.success}10`,
+      borderColor: `${colors.success}40`,
+    } as const,
+    badgeText: {
+      fontSize: 9,
+      fontWeight: '800',
+      letterSpacing: 1,
+    } as const,
+    badgeTextPending: {
+      color: colors.oxygen,
+    } as const,
+    badgeTextCollected: {
+      color: colors.success,
+    } as const,
+    totalCorner: {
+      alignItems: 'flex-end' as const,
+    } as const,
+    totalNum: {
+      color: colors.oxygen,
+      fontSize: 18,
+      fontWeight: '800',
+    } as const,
+    totalNumCollected: {
+      color: colors.success,
+    } as const,
+    totalUnit: {
+      color: colors.textSecondary,
+      fontSize: 9,
+    } as const,
+    itemsRow: {
+      flexDirection: 'row' as const,
+      flexWrap: 'wrap' as const,
+      gap: 5,
+    } as const,
+    itemChip: {
+      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+      borderRadius: radii.md,
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.1)',
+    } as const,
+    itemText: {
+      color: colors.textPrimary,
+      fontSize: 11,
+    } as const,
+    itemTextMuted: {
+      color: colors.textSecondary,
+      fontSize: 11,
+    } as const,
+    actions: {
+      flexDirection: 'row' as const,
+      gap: spacing.sm,
+    } as const,
+    btnNavigate: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.md,
+      backgroundColor: `${colors.oxygen}15`,
+      borderWidth: 1,
+      borderColor: `${colors.oxygen}40`,
+      alignItems: 'center' as const,
+    } as const,
+    btnNavigateText: {
+      color: colors.oxygen,
+      fontSize: 12,
+      fontWeight: '700',
+    } as const,
+    btnCollect: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.md,
+      backgroundColor: `${colors.success}15`,
+      borderWidth: 1,
+      borderColor: `${colors.success}40`,
+      alignItems: 'center' as const,
+    } as const,
+    btnCollectText: {
+      color: colors.success,
+      fontSize: 12,
+      fontWeight: '700',
+    } as const,
+  };
 
   const handlePressIn = () => {
     Animated.spring(scaleAnim, {
@@ -49,44 +225,44 @@ export function SupplyCard({
   const totalItems = supply.items?.length ?? 0;
 
   return (
-    <Animated.View style={[styles.wrapper, { transform: [{ scale: scaleAnim }] }]}>
+    <Animated.View style={[dynamicStyles.wrapper, { transform: [{ scale: scaleAnim }] }]}>
       <TouchableOpacity
         activeOpacity={1}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={() => !isCollected && onNavigate?.(supply)}
-        style={[styles.card, isCollected && styles.cardCollected]}
+        style={[dynamicStyles.card, isCollected && dynamicStyles.cardCollected]}
         disabled={isCollected}
       >
         <View
           style={[
-            styles.accent,
-            isCollected ? styles.accentCollected : styles.accentPending,
+            dynamicStyles.accent,
+            isCollected ? dynamicStyles.accentCollected : dynamicStyles.accentPending,
           ]}
         />
 
-        <View style={styles.content}>
-          <View style={styles.topRow}>
-            <View style={styles.iconWrapper}>
-              <Text style={styles.icon}>{isCollected ? '✓' : '📦'}</Text>
+        <View style={dynamicStyles.content}>
+          <View style={dynamicStyles.topRow}>
+            <View style={dynamicStyles.iconWrapper}>
+              <Text style={dynamicStyles.icon}>{isCollected ? '✓' : '📦'}</Text>
             </View>
 
-            <View style={styles.titleBlock}>
-              <Text style={styles.title} numberOfLines={1}>
+            <View style={dynamicStyles.titleBlock}>
+              <Text style={dynamicStyles.title} numberOfLines={1}>
                 Suministro
               </Text>
 
               {distanceMeters !== undefined && !isCollected && (
-                <View style={styles.distanceRow}>
-                  <Text style={styles.distanceDot}>◎</Text>
-                  <Text style={styles.distanceText}>
+                <View style={dynamicStyles.distanceRow}>
+                  <Text style={dynamicStyles.distanceDot}>◎</Text>
+                  <Text style={dynamicStyles.distanceText}>
                     {formatDistance(distanceMeters)}
                   </Text>
                 </View>
               )}
 
               {isCollected && supply.collected_at && (
-                <Text style={styles.collectedAt}>
+                <Text style={dynamicStyles.collectedAt}>
                   Recolectado a las{' '}
                   {new Date(supply.collected_at).toLocaleTimeString('es-CR', {
                     hour: '2-digit',
@@ -96,48 +272,48 @@ export function SupplyCard({
               )}
             </View>
 
-            <View style={styles.rightBlock}>
+            <View style={dynamicStyles.rightBlock}>
               <View
                 style={[
-                  styles.badge,
-                  isCollected ? styles.badgeCollected : styles.badgePending,
+                  dynamicStyles.badge,
+                  isCollected ? dynamicStyles.badgeCollected : dynamicStyles.badgePending,
                 ]}
               >
                 <Text
                   style={[
-                    styles.badgeText,
+                    dynamicStyles.badgeText,
                     isCollected
-                      ? styles.badgeTextCollected
-                      : styles.badgeTextPending,
+                      ? dynamicStyles.badgeTextCollected
+                      : dynamicStyles.badgeTextPending,
                   ]}
                 >
                   {isCollected ? 'LISTO' : 'PENDIENTE'}
                 </Text>
               </View>
 
-              <View style={styles.totalCorner}>
+              <View style={dynamicStyles.totalCorner}>
                 <Text
                   style={[
-                    styles.totalNum,
-                    isCollected && styles.totalNumCollected,
+                    dynamicStyles.totalNum,
+                    isCollected && dynamicStyles.totalNumCollected,
                   ]}
                 >
                   {totalItems}
                 </Text>
-                <Text style={styles.totalUnit}>items</Text>
+                <Text style={dynamicStyles.totalUnit}>items</Text>
               </View>
             </View>
           </View>
 
 {supply.items?.length > 0 && (
-            <View style={styles.itemsRow}>
+            <View style={dynamicStyles.itemsRow}>
               {supply.items.slice(0, 3).map((item) => {
-                const name = item.base_resource?.name ?? 'Recurso';  // ← cambiado
-                const unit = item.base_resource?.unit ?? 'u';        // ← cambiado
+                const name = item.base_resource?.name ?? 'Recurso';
+                const unit = item.base_resource?.unit ?? 'u';
 
                 return (
-                  <View key={item.id} style={styles.itemChip}>
-                    <Text style={styles.itemText} numberOfLines={1}>
+                  <View key={item.id} style={dynamicStyles.itemChip}>
+                    <Text style={dynamicStyles.itemText} numberOfLines={1}>
                       {item.amount} {unit} · {name}
                     </Text>
                   </View>
@@ -145,8 +321,8 @@ export function SupplyCard({
               })}
 
               {supply.items.length > 3 && (
-                <View style={styles.itemChip}>
-                  <Text style={styles.itemTextMuted}>
+                <View style={dynamicStyles.itemChip}>
+                  <Text style={dynamicStyles.itemTextMuted}>
                     +{supply.items.length - 3} más
                   </Text>
                 </View>
@@ -155,20 +331,20 @@ export function SupplyCard({
           )}
 
           {!isCollected && (
-            <View style={styles.actions}>
+            <View style={dynamicStyles.actions}>
               <TouchableOpacity
-                style={styles.btnNavigate}
+                style={dynamicStyles.btnNavigate}
                 onPress={() => onNavigate?.(supply)}
                 activeOpacity={0.75}
               >
-                <Text style={styles.btnNavigateText}>◎ Navegar</Text>
+                <Text style={dynamicStyles.btnNavigateText}>◎ Navegar</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.btnCollect}
+                style={dynamicStyles.btnCollect}
                 onPress={() => onCollect?.(supply)}
                 activeOpacity={0.75}
               >
-                <Text style={styles.btnCollectText}>⬡ Recolectar</Text>
+                <Text style={dynamicStyles.btnCollectText}>⬡ Recolectar</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -178,176 +354,4 @@ export function SupplyCard({
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    marginBottom: 10,
-  },
-  card: {
-    backgroundColor: '#0d0d1f',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#00d4ff22',
-    flexDirection: 'row',
-    overflow: 'hidden',
-  },
-  cardCollected: {
-    borderColor: '#00ff8822',
-    opacity: 0.75,
-  },
-  accent: {
-    width: 4,
-  },
-  accentPending: {
-    backgroundColor: '#00d4ff',
-  },
-  accentCollected: {
-    backgroundColor: '#00ff88',
-  },
-  content: {
-    flex: 1,
-    padding: 12,
-    gap: 10,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  iconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#ffffff08',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 18,
-  },
-  titleBlock: {
-    flex: 1,
-    gap: 2,
-    paddingRight: 6,
-  },
-  title: {
-    color: '#dde0ff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  distanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  distanceDot: {
-    color: '#00d4ff',
-    fontSize: 10,
-  },
-  distanceText: {
-    color: '#8888aa',
-    fontSize: 12,
-  },
-  collectedAt: {
-    color: '#00ff8888',
-    fontSize: 11,
-  },
-  rightBlock: {
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    minWidth: 50,
-    gap: 6,
-  },
-  badge: {
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderWidth: 1,
-  },
-  badgePending: {
-    backgroundColor: '#00d4ff10',
-    borderColor: '#00d4ff40',
-  },
-  badgeCollected: {
-    backgroundColor: '#00ff8810',
-    borderColor: '#00ff8840',
-  },
-  badgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 1,
-  },
-  badgeTextPending: {
-    color: '#00d4ff',
-  },
-  badgeTextCollected: {
-    color: '#00ff88',
-  },
-  totalCorner: {
-    alignItems: 'flex-end',
-  },
-  totalNum: {
-    color: '#00d4ff',
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  totalNumCollected: {
-    color: '#00ff88',
-  },
-  totalUnit: {
-    color: '#8888aa',
-    fontSize: 9,
-  },
-  itemsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5,
-  },
-  itemChip: {
-    backgroundColor: '#ffffff08',
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: '#ffffff0a',
-  },
-  itemText: {
-    color: '#c0c0e0',
-    fontSize: 11,
-  },
-  itemTextMuted: {
-    color: '#8888aa',
-    fontSize: 11,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  btnNavigate: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#00d4ff15',
-    borderWidth: 1,
-    borderColor: '#00d4ff40',
-    alignItems: 'center',
-  },
-  btnNavigateText: {
-    color: '#00d4ff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  btnCollect: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#00ff8815',
-    borderWidth: 1,
-    borderColor: '#00ff8840',
-    alignItems: 'center',
-  },
-  btnCollectText: {
-    color: '#00ff88',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-});
+const styles = StyleSheet.create({});

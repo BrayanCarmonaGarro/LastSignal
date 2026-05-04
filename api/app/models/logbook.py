@@ -1,5 +1,6 @@
 import enum
-from sqlalchemy import Boolean, Column, Enum, Float, ForeignKey, String, Text
+from datetime import datetime
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -41,6 +42,7 @@ class LogbookEntry(UUIDMixin, TimestampMixin, Base):
     is_ai_reviewed = Column(Boolean, nullable=False, default=False)
     sync_status = Column(Enum(SyncStatus), nullable=False, default=SyncStatus.SYNCED)
     is_downloaded = Column(Boolean, nullable=False, default=False)
+    downloaded_until = Column(DateTime, nullable=True)
 
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     user = relationship("User", back_populates="logbook_entries")
