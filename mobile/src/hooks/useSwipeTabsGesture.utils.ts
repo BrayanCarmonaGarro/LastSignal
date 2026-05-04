@@ -17,6 +17,11 @@ export const ENTER_FRICTION = 20;
 export const SNAP_TENSION = 80;
 export const SNAP_FRICTION = 12;
 
+export const PULL_THRESHOLD = 70;
+export const PULL_MAX_DISPLAY = 60;
+export const PULL_START_ZONE_Y = 200;
+export const PULL_RUBBER_BAND = 0.4;
+
 export const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
