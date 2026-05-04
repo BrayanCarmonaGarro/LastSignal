@@ -209,7 +209,7 @@ export default function TripsIndexScreen() {
             }}
           > {/*
             {supplyDrops.map((drop) => (
-              <SupplyDropMarker key={drop.id} supply={drop} onPress={handleDropPress} />
+              <MapMarker key={drop.id} supply={drop} onPress={handleDropPress} />
             ))}*/}
           </MapView>
         ) : (
