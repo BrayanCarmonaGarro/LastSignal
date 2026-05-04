@@ -12,17 +12,16 @@ DEFAULT_RESOURCE_AMOUNTS: dict[str, float] = {
 }
 
 
-def initialize_user_resources(db: Session, user_id: uuid.UUID) -> None:
+def initialize_user_inventory(db: Session, user_id: uuid.UUID) -> None:
     from app.models.base_resource import BaseResource
-    from app.models.resource import Resource
+    from app.models.inventory_resource import InventoryResource
 
     base_resources = db.query(BaseResource).all()
     for base_res in base_resources:
         amount = DEFAULT_RESOURCE_AMOUNTS.get(base_res.name, 0.0)
-        resource = Resource(
+        resource = InventoryResource(
             base_resource_id=base_res.id,
             current_amount=amount,
-            is_critical=amount <= base_res.min_threshold,
             user_id=user_id,
         )
         db.add(resource)

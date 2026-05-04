@@ -45,7 +45,9 @@ async def get_dashboard(
 
     category_map: dict = defaultdict(list)
     for r in inventory:
-        category_map[r.base_resource.category.value].append(r)
+        category = r.base_resource.category
+        category_key = category.value if hasattr(category, "value") else str(category)
+        category_map[category_key].append(r)
 
     resource_groups = [
         ResourceCategoryGroup(
