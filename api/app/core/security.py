@@ -73,8 +73,8 @@ async def resolve_db_user(current_user: dict, db):
         db.commit()
         db.refresh(user)
         try:
-            from app.services.resource_service import initialize_user_resources
-            initialize_user_resources(db, user.id)
+            from app.services.inventory_service import initialize_user_inventory
+            initialize_user_inventory(db, user.id)
         except Exception:
             pass
     else:
