@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 from app.models.user import UserRole
 from app.core.constants import USERNAME_PATTERN
+from app.schemas.ship_base import ShipBaseResponse
 
 
 class UserResponse(BaseModel):
@@ -14,7 +15,7 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str]
     level: int
     experience_pts: int
-    ship_base_id: Optional[str] = None
+    ship_base_id: Optional[UUID] = None
     created_at: datetime
 
     class Config:
@@ -44,6 +45,7 @@ class ResourceCategoryGroup(BaseModel):
 
 class DashboardResponse(BaseModel):
     user: UserResponse
+    ship_base: Optional[ShipBaseResponse] = None
     total_logbook_entries: int
     total_resources: int
     critical_resources_below_threshold: int

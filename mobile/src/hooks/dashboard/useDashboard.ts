@@ -37,8 +37,8 @@ export function useDashboard() {
 
   const confirmLogout = async () => {
     setProfileVisible(false);
-    clearDashboard();
     await clearSession();
+    clearDashboard();
   };
 
   const trimmedEdit = editUsername.trim();

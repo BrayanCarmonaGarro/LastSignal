@@ -7,12 +7,14 @@ from app.core.database import get_db
 from app.core.security import get_current_user, resolve_db_user
 from app.models.logbook import LogbookEntry
 from app.models.inventory_resource import InventoryResource
+from app.models.ship_base import ShipBase
 from app.models.trip import Trip, TripStatus
 from app.models.user_achievement import UserAchievement
 from app.routers.inventory import serialize_inventory
 from app.schemas.achievement import UserAchievementResponse
 from app.schemas.logbook import LogbookEntryResponse
 from app.schemas.inventory_resource import InventoryResourceResponse
+from app.schemas.ship_base import ShipBaseResponse
 from app.schemas.user import (
     ActiveTripSummary,
     DashboardResponse,
@@ -29,6 +31,12 @@ async def get_dashboard(
     current_user: dict = Depends(get_current_user),
 ):
     user = await resolve_db_user(current_user, db)
+
+    ship_base = (
+        db.query(ShipBase).filter(ShipBase.id == user.ship_base_id).first()
+        if user.ship_base_id
+        else None
+    )
 
     total_logbook = db.query(LogbookEntry).filter(LogbookEntry.user_id == user.id).count()
 
@@ -94,6 +102,7 @@ async def get_dashboard(
 
     return DashboardResponse(
         user=UserResponse.model_validate(user),
+        ship_base=ShipBaseResponse.model_validate(ship_base) if ship_base else None,
         total_logbook_entries=total_logbook,
         total_resources=total_resources,
         critical_resources_below_threshold=critical_below,
