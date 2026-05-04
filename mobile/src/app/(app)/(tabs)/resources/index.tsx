@@ -6,6 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useResourceStore } from '@/store/resourceStore';
+import { useSwipeTabsGesture } from '@/components/ui/SwipeTabsGesture';
+import { TAB_ORDER } from '@/hooks/useSwipeTabsGesture.utils';
 import { Resource } from '@/services/api/resources.api';
 import { UIResource, ResourceStatus } from '@/types/resource.types';
 import { UNIT_LABELS, MAX_AMOUNTS } from '@/constants/resources';
@@ -35,8 +37,13 @@ function toUIResource(r: Resource): UIResource {
 // ── Pantalla principal ───────────────────────────────────────────
 export default function ResourcesScreen() {
   const { resources, loading, error, fetchResources } = useResourceStore();
+  const { registerRefreshHandler } = useSwipeTabsGesture();
 
   useEffect(() => { fetchResources(); }, []);
+
+  useEffect(() => {
+    registerRefreshHandler(TAB_ORDER.indexOf('resources'), fetchResources);
+  }, [fetchResources, registerRefreshHandler]);
 
   const uiResources = useMemo(() => resources.map(toUIResource), [resources]);
 
