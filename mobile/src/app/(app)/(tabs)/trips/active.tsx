@@ -1,5 +1,5 @@
 // src/app/(app)/(tabs)/trips/active.tsx
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,16 +15,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTrip } from "@/hooks/trip/useTrip";
 import { useOxygen } from "@/hooks/trip/useOxygen";
 import { useSupplies } from "@/hooks/trip/useSupplies";
+import {
+  useMarkerOverlay,
+  type OverlayMarker,
+} from "@/hooks/trip/useMarkerOverlay";
 import { OxygenBar } from "@/components/trips/OxygenBar";
 import { SupplyDropMarker } from "@/components/trips/markers/SupplyDropMarker";
-// UPDATE: MARKERS
-import {
-  WaypointMarker,
-  DangerZoneMarker,
-  BaseMapMarker,
-} from "@/components/trips/markers";
+import { WaypointMarker } from "@/components/trips/markers/WaypointMarker";
+import { DangerZoneMarker } from "@/components/trips/markers/DangerZoneMarker";
+import { BaseOverlayMarker } from "@/components/trips/markers/BaseOverlayMarker";
+import { TripActionSheet, type SheetData } from "@/components/trips/TripActionSheet";
 import { useTripStore } from "@/store/tripStore";
-import type { SupplyDrop } from "@/store/tripStore";
+import type { SupplyDrop, TripDangerZone } from "@/store/tripStore";
 
 const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0d0d1a" }] },
@@ -51,17 +53,51 @@ const DARK_MAP_STYLE = [
 
 export default function ActiveTripScreen() {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
 
   const { activeTrip, canEnd, end, collectDrop, logPosition } = useTrip();
   const { level, oxygenStatus, minutesRemaining, isConsuming } = useOxygen();
   const { supplyDrops } = useSupplies();
   const routePoints = useTripStore((s) => s.routePoints);
-  const baseCoordinate = routePoints[0] ?? null; // Cambiar por el del usuario
-
   const waypoints = useTripStore((s) => s.waypoints);
   const dangerZones = useTripStore((s) => s.dangerZones);
+  const baseCoordinate = routePoints[0] ?? null;
 
+  const [sheetData, setSheetData] = React.useState<SheetData | null>(null);
+
+  const allMarkers = useMemo<OverlayMarker[]>(() => {
+    const markers: OverlayMarker[] = [];
+
+    if (baseCoordinate) {
+      markers.push({ id: "__base__", coordinate: baseCoordinate });
+    }
+
+    supplyDrops.forEach((d) =>
+      markers.push({
+        id: `supply_${d.id}`,
+        coordinate: { latitude: d.latitude, longitude: d.longitude },
+      }),
+    );
+
+    waypoints.forEach((wp) =>
+      markers.push({
+        id: `wp_${wp.id}`,
+        coordinate: { latitude: wp.latitude, longitude: wp.longitude },
+      }),
+    );
+
+    dangerZones.forEach((dz) =>
+      markers.push({
+        id: `dz_${dz.id}`,
+        coordinate: { latitude: dz.latitude, longitude: dz.longitude },
+      }),
+    );
+
+    return markers;
+  }, [baseCoordinate, supplyDrops, waypoints, dangerZones]);
+
+  const { mapRef, positions, recalculate } = useMarkerOverlay(allMarkers);
+
+  // ─── TRACKING DE POSICIÓN ─────────────────────────────
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
 
@@ -70,10 +106,7 @@ export default function ActiveTripScreen() {
       if (status !== "granted") return;
 
       sub = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 5,
-        },
+        { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 5 },
         (location) => {
           const coords = {
             latitude: location.coords.latitude,
@@ -85,11 +118,11 @@ export default function ActiveTripScreen() {
       );
     })();
 
-    return () => {
-      sub?.remove();
-    };
+    return () => { sub?.remove(); };
   }, [logPosition]);
 
+  // ─── ALERTAS DE OXÍGENO (estas sí quedan como Alert nativo
+  //     porque son emergencias que deben interrumpir cualquier flujo) ──
   useEffect(() => {
     if (oxygenStatus === "critical") {
       Alert.alert(
@@ -107,36 +140,30 @@ export default function ActiveTripScreen() {
     }
   }, [oxygenStatus]);
 
+  // ─── HANDLERS ─────────────────────────────────────────
   const handleEndTrip = useCallback(() => {
-    Alert.alert(
-      "Finalizar viaje",
-      "¿Seguro que quieres terminar la exploración y regresar a la nave?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Terminar", style: "destructive", onPress: end },
-      ],
-    );
+    setSheetData({
+      variant: "confirm",
+      title: "Finalizar viaje",
+      message: "¿Seguro que quieres terminar la exploración y regresar a la nave?",
+      confirmLabel: "Terminar",
+      confirmColor: "#ef4444",
+      onConfirm: end,
+    });
   }, [end]);
 
   const handleDropPress = useCallback(
     (drop: SupplyDrop) => {
       if (drop.collected_at) return;
-      Alert.alert(
-        `Recolectar: ${drop.id}`,
-        `Contiene ${drop.items.length} tipo(s) de recurso.`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Recolectar ✓",
-            onPress: () => collectDrop(drop.id),
-          },
-        ],
-      );
+      setSheetData({
+        variant: "supply",
+        drop,
+        onCollect: (d) => collectDrop(d.id),
+      });
     },
     [collectDrop],
   );
 
-  // UPDATE: MARKERS
   const handleWaypointPress = useCallback(
     (latitude: number, longitude: number) => {
       mapRef.current?.animateCamera(
@@ -147,20 +174,18 @@ export default function ActiveTripScreen() {
     [],
   );
 
-  // UPDATE: MARKERS
-  const handleDangerZonePress = useCallback((description: string) => {
-    Alert.alert("Zona peligrosa", description);
+  const handleDangerZonePress = useCallback((zone: TripDangerZone) => {
+    setSheetData({ variant: "danger", zone });
   }, []);
 
-  const collectedCount = supplyDrops.filter(
-    (d) => d.status === "COLLECTED",
-  ).length;
+  const collectedCount = supplyDrops.filter((d) => d.status === "COLLECTED").length;
   const totalSupplies = supplyDrops.length;
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
+      {/* Mapa */}
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
@@ -174,6 +199,8 @@ export default function ActiveTripScreen() {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
+        onRegionChange={recalculate}
+        onLayout={recalculate}
       >
         {routePoints.length > 1 && (
           <Polyline
@@ -183,24 +210,20 @@ export default function ActiveTripScreen() {
             lineDashPattern={[8, 4]}
           />
         )}
+      </MapView>
 
-        {supplyDrops.map((drop) => (
-          <SupplyDropMarker
-            key={drop.id}
-            supply={drop}
-            onPress={handleDropPress}
-          />
-        ))}
+      {/* Overlay de markers */}
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
 
-        {/* UPDATE: MARKERS */}
-        {baseCoordinate && (
-          <BaseMapMarker
-            coordinate={baseCoordinate}
+        {/* Nave base */}
+        {baseCoordinate && positions["__base__"] && (
+          <BaseOverlayMarker
+            screenX={positions["__base__"].x}
+            screenY={positions["__base__"].y}
             icon="🚀"
             color="#00d4ff"
             size="lg"
             shape="circle"
-            pulseAnim
             callout={{
               title: "Nave base",
               subtitle: "Punto de retorno",
@@ -209,28 +232,60 @@ export default function ActiveTripScreen() {
           />
         )}
 
-        {waypoints.map((wp, index) => (
-          <WaypointMarker
-            key={wp.id}
-            coordinate={{ latitude: wp.latitude, longitude: wp.longitude }}
-            index={index + 1}
-            label={wp.name ?? undefined}
-            visited={wp.status === "REACHED"}
-            onPress={handleWaypointPress}
-          />
-        ))}
-      
-        {dangerZones.map((dz) => (
-          <DangerZoneMarker
-            key={dz.id}
-            coordinate={{ latitude: dz.latitude, longitude: dz.longitude }}
-            label={dz.description ?? undefined}
-            severity={dz.severity.toLowerCase() as "low" | "medium" | "high"}
-            onPress={handleDangerZonePress}
-          />
-        ))}
-      </MapView>
+        {/* Supply drops */}
+        {supplyDrops.map((drop) => {
+          const pos = positions[`supply_${drop.id}`];
+          if (!pos) return null;
+          return (
+            <SupplyDropMarker
+              key={drop.id}
+              screenX={pos.x}
+              screenY={pos.y}
+              supply={drop}
+              onPress={handleDropPress}
+              showCallout={false}
+            />
+          );
+        })}
 
+        {/* Waypoints */}
+        {waypoints.map((wp, index) => {
+          const pos = positions[`wp_${wp.id}`];
+          if (!pos) return null;
+          return (
+            <WaypointMarker
+              key={wp.id}
+              screenX={pos.x}
+              screenY={pos.y}
+              index={index + 1}
+              label={wp.name ?? undefined}
+              visited={wp.status === "REACHED"}
+              onPress={handleWaypointPress}
+              latitude={wp.latitude}
+              longitude={wp.longitude}
+              showCallout={false}
+            />
+          );
+        })}
+
+        {/* Danger zones */}
+        {dangerZones.map((dz) => {
+          const pos = positions[`dz_${dz.id}`];
+          if (!pos) return null;
+          return (
+            <DangerZoneMarker
+              key={dz.id}
+              screenX={pos.x}
+              screenY={pos.y}
+              zone={dz}
+              onPress={handleDangerZonePress}
+              showCallout={false}
+            />
+          );
+        })}
+      </View>
+
+      {/* HUD top */}
       <View style={[styles.hudTop, { paddingTop: insets.top + 8 }]}>
         <View style={styles.hudCard}>
           <OxygenBar
@@ -242,6 +297,7 @@ export default function ActiveTripScreen() {
         </View>
       </View>
 
+      {/* HUD bottom */}
       <View style={[styles.hudBottom, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
@@ -278,15 +334,18 @@ export default function ActiveTripScreen() {
           <Text style={styles.endBtnText}>◉ FINALIZAR VIAJE</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Action sheet */}
+      <TripActionSheet
+        data={sheetData}
+        onClose={() => setSheetData(null)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#050510",
-  },
+  container: { flex: 1, backgroundColor: "#050510" },
   hudTop: {
     position: "absolute",
     top: 0,
@@ -322,30 +381,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-around",
   },
-  statItem: {
-    alignItems: "center",
-    gap: 2,
-  },
+  statItem: { alignItems: "center", gap: 2 },
   statValue: {
     color: "#dde0ff",
     fontSize: 18,
     fontWeight: "800",
     fontVariant: ["tabular-nums"],
   },
-  statValueWarn: {
-    color: "#ffcc00",
-  },
+  statValueWarn: { color: "#ffcc00" },
   statLabel: {
     color: "#8888aa",
     fontSize: 10,
     fontWeight: "600",
     letterSpacing: 0.5,
   },
-  statDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: "#ffffff15",
-  },
+  statDivider: { width: 1, height: 28, backgroundColor: "#ffffff15" },
   endBtn: {
     backgroundColor: "#ff444422",
     borderWidth: 1,
@@ -359,9 +409,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  endBtnDisabled: {
-    opacity: 0.4,
-  },
+  endBtnDisabled: { opacity: 0.4 },
   endBtnText: {
     color: "#ff8888",
     fontSize: 14,
