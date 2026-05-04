@@ -18,7 +18,16 @@ export function UsernameSetupScreen() {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const { user } = useAuthStore();
-  const { username, handleChange, handleSubmit, isValid, loading, inputError } = useUsernameSetup();
+  const {
+    username,
+    shipName,
+    handleChangeUsername,
+    handleChangeShipName,
+    handleSubmit,
+    isValid,
+    loading,
+    inputError,
+  } = useUsernameSetup();
 
   return (
     <KeyboardAvoidingView
@@ -50,15 +59,31 @@ export function UsernameSetupScreen() {
         <TextInputField
           label="Nombre de usuario"
           value={username}
-          onChangeText={handleChange}
+          onChangeText={handleChangeUsername}
           onSubmitEditing={handleSubmit}
           placeholder="ej: nova_7"
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={30}
-          returnKeyType="done"
+          returnKeyType="next"
           error={inputError}
         />
+
+        <View>
+          <TextInputField
+            label="Nombre de la base"
+            value={shipName}
+            onChangeText={handleChangeShipName}
+            onSubmitEditing={handleSubmit}
+            placeholder="ej: Base Sigma-7"
+            autoCorrect={false}
+            maxLength={120}
+            returnKeyType="done"
+          />
+          <Text style={styles.subtitle}>
+            Tu base se creará en tu ubicación actual
+          </Text>
+        </View>
 
         <TouchableOpacity
           onPress={handleSubmit}

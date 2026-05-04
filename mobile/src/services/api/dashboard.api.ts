@@ -14,8 +14,16 @@ export interface DashboardUser {
   experience_pts: number;
 }
 
+export interface DashboardShipBase {
+  id: string;
+  name: string | null;
+  latitude: number;
+  longitude: number;
+}
+
 export interface DashboardData {
   user: DashboardUser;
+  ship_base: DashboardShipBase | null;
   total_logbook_entries: number;
   total_resources: number;
   critical_resources_below_threshold: number;
