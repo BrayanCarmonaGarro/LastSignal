@@ -19,8 +19,10 @@ class ResourceLog(UUIDMixin, TimestampMixin, Base):
     amount = Column(Float, nullable=False)
     reason = Column(String(255), nullable=True)
 
-    resource_id = Column(UUID(as_uuid=True), ForeignKey("resources.id"), nullable=False)
+    inventory_resource_id = Column(UUID(as_uuid=True), ForeignKey("inventory_resources.id"), nullable=True)
+    base_storage_id = Column(UUID(as_uuid=True), ForeignKey("base_storage.id"), nullable=True)
     trip_id = Column(UUID(as_uuid=True), ForeignKey("trips.id"), nullable=True)
 
-    resource = relationship("Resource", back_populates="logs")
+    inventory_resource = relationship("InventoryResource", back_populates="logs")
+    base_storage = relationship("BaseStorage", back_populates="logs")
     trip = relationship("Trip")

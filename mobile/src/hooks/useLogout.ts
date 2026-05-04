@@ -1,3 +1,4 @@
+// mobile/src/hooks/useLogout.ts
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 

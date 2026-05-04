@@ -1,4 +1,6 @@
+# api/app/core/security.py
 # Validación tokens Keycloak
+import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -35,7 +37,10 @@ async def get_current_user(
             token,
             pem_key,
             algorithms=["RS256"],
-            options={"verify_aud": False},
+            options={
+                "verify_aud": False,
+                "verify_iss": False, # No verificamos el issuer porque Keycloak puede usar diferentes URLs internas/externas, pero hay que solucionar esto después
+            },
         )
         user_id: str = payload.get("sub")
         if user_id is None:
@@ -48,21 +53,40 @@ async def get_current_user(
 async def resolve_db_user(current_user: dict, db):
     """
     Dado el payload del token de Keycloak, busca o crea el usuario en PostgreSQL.
-    Retorna el objeto User de la DB con su UUID real.
+    Usa el sub del JWT como UUID del usuario, garantizando 1:1 con Keycloak.
     """
     from app.models.user import User
 
-    username = current_user.get("preferred_username")
-    user = db.query(User).filter(User.username == username).first()
+    keycloak_id = uuid.UUID(current_user["sub"])
+    user = db.query(User).filter(User.id == keycloak_id).first()
+
+    token_display_name = current_user.get("name")
+    token_avatar_url   = current_user.get("picture")
 
     if not user:
         user = User(
-            username=username,
-            password_hash="keycloak",
-            display_name=current_user.get("name", username),
+            id=keycloak_id,
+            display_name=token_display_name,
+            avatar_url=token_avatar_url,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+        try:
+            from app.services.inventory_service import initialize_user_inventory
+            initialize_user_inventory(db, user.id)
+        except Exception:
+            pass
+    else:
+        dirty = False
+        if token_display_name and user.display_name != token_display_name:
+            user.display_name = token_display_name
+            dirty = True
+        if token_avatar_url and user.avatar_url != token_avatar_url:
+            user.avatar_url = token_avatar_url
+            dirty = True
+        if dirty:
+            db.commit()
+            db.refresh(user)
 
     return user

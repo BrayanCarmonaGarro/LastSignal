@@ -31,6 +31,7 @@ class LogbookEntryResponse(BaseModel):
     is_ai_reviewed: bool
     sync_status: SyncStatus
     is_downloaded: bool
+    downloaded_until: Optional[datetime] = None
     created_at: datetime
     user_id: UUID
 

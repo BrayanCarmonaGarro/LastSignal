@@ -1,4 +1,0 @@
-
-{
-  "note": "Put your Keycloak realm export here. You can get it from the Keycloak admin console by going to your realm, then 'Realm Settings' > 'Export' > 'Export Realm'."
-}

@@ -1,3 +1,4 @@
+# Models/trip.py
 import enum
 from datetime import datetime
 from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, String, Text
@@ -27,3 +28,5 @@ class Trip(UUIDMixin, TimestampMixin, Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     user = relationship("User", back_populates="trips")
     supply_drops = relationship("SupplyDrop", back_populates="trip")
+    waypoints = relationship("TripWaypoint", back_populates="trip")
+    danger_zones = relationship("TripDangerZone", back_populates="trip")
