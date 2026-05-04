@@ -23,6 +23,7 @@ def serialize_base_storage(storage: BaseStorage) -> dict:
         "base_resource_id": storage.base_resource_id,
         "current_amount": storage.current_amount,
         "ship_base_id": storage.ship_base_id,
+        "created_at": storage.created_at,
         "name": storage.base_resource.name,
         "category": storage.base_resource.category,
         "unit": storage.base_resource.unit,

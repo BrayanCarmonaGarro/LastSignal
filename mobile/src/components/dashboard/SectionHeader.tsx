@@ -10,7 +10,7 @@ export function SectionHeader({ title, subtitle }: SectionHeaderProps) {
   const { colors, fonts, fontSizes, spacing, letterSpacings } = useTheme();
 
   return (
-    <View style={{ marginBottom: spacing.md, marginTop: spacing.xl }}>
+    <View style={{ marginBottom: spacing.md, marginTop: spacing.lg }}>
       <Text
         style={{
           fontFamily:    fonts.display,
