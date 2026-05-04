@@ -10,7 +10,7 @@ import type { SupplyDropItem } from "@/store/tripStore";
 import { formatDuration, getDuration } from "@/utils/formatters";
 
 function summarizeItems(items: SupplyDropItem[]) {
-  const map = new Map<
+  const map = new Map <
     string,
     { resourceId: string; name: string; quantity: number; unit: string }
   >();
@@ -34,7 +34,8 @@ function summarizeItems(items: SupplyDropItem[]) {
 export function useTripSummary() {
   const { activeTrip, completeReturn } = useTrip();
   const { collectedDrops } = useSupplies();
-  const routePoints = useTripStore((s) => s.routePoints);
+  const routePoints   = useTripStore((s) => s.routePoints);
+  const isHydrated    = useTripStore((s) => s._hasHydrated);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -69,6 +70,7 @@ export function useTripSummary() {
 
   return {
     activeTrip,
+    isHydrated,
     routePoints,
     formattedDuration: formatDuration(duration),
     resources,

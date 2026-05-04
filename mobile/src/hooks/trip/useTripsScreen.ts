@@ -28,11 +28,16 @@ export function useTripsScreen() {
   const oxygen = useOxygen();
   const supplies = useSupplies();
 
+// src/hooks/trip/useTripsScreen.ts
   useEffect(() => {
     tripService
       .getActiveTrip()
       .then((trip) => setActiveTrip(trip))
-      .catch(() => setActiveTrip(null));
+      .catch(() => {
+        // No hay trip activo en backend — limpia el store sin importar
+        // lo que haya persistido (puede ser un COMPLETED de sesión anterior)
+        setActiveTrip(null);
+      });
   }, [setActiveTrip]);
 
   useEffect(() => {

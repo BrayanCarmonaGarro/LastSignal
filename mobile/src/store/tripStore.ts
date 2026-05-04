@@ -1,11 +1,11 @@
-//src/store/tripStore.ts
+// src/store/tripStore.ts
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { TripRecord, TripStatus, Coordinates } from '@/types/trip.types';
+import type { TripRecord, TripStatus, Coordinates, TripWaypoint, TripDangerZone } from '@/types/trip.types';
 import type { SupplyDrop, SupplyDropStatus, SupplyDropItem } from '@/types/supply_drop.types';
 
-export type { TripRecord, TripStatus, Coordinates, SupplyDrop, SupplyDropStatus, SupplyDropItem };
+export type { TripRecord, TripStatus, Coordinates, SupplyDrop, SupplyDropStatus, SupplyDropItem, TripWaypoint, TripDangerZone };
 
 interface OxygenState {
   level: number;
@@ -14,12 +14,16 @@ interface OxygenState {
 }
 
 interface TripStoreState {
+  _hasHydrated: boolean;
   activeTrip: TripRecord | null;
   supplyDrops: SupplyDrop[];
   lastFetchedAt: string | null;
   routePoints: Coordinates[];
   oxygen: OxygenState;
+  waypoints: TripWaypoint[];
+  dangerZones: TripDangerZone[];
 
+  setHasHydrated: (val: boolean) => void;
   setActiveTrip: (trip: TripRecord | null) => void;
   setSupplyDrops: (drops: SupplyDrop[]) => void;
   markDropCollected: (dropId: string, tripId: string) => void;
@@ -30,20 +34,28 @@ interface TripStoreState {
   setOxygenConsuming: (consuming: boolean) => void;
   setOxygenLevel: (level: number) => void;
   resetOxygen: () => void;
+  setWaypoints: (waypoints: TripWaypoint[]) => void;
+  setDangerZones: (zones: TripDangerZone[]) => void;
+  markWaypointReached: (waypointId: string) => void;
 }
 
 export const useTripStore = create<TripStoreState>()(
   persist(
     (set, get) => ({
+      _hasHydrated: false,
       activeTrip: null,
       supplyDrops: [],
       lastFetchedAt: null,
       routePoints: [],
+      waypoints: [],
+      dangerZones: [],
       oxygen: {
         level: 100,
         ratePerSecond: 0.05,
         isConsuming: false,
       },
+
+      setHasHydrated: (val) => set({ _hasHydrated: val }),
 
       setActiveTrip: (trip) => set({ activeTrip: trip }),
 
@@ -96,15 +108,39 @@ export const useTripStore = create<TripStoreState>()(
         set((state) => ({
           oxygen: { ...state.oxygen, level: 100, isConsuming: false },
         })),
+
+      setWaypoints: (waypoints) => set({ waypoints }),
+
+      setDangerZones: (zones) => set({ dangerZones: zones }),
+
+      markWaypointReached: (waypointId) =>
+        set((state) => ({
+          waypoints: state.waypoints.map((w) =>
+            w.id === waypointId
+              ? { ...w, status: 'REACHED' as const, reached_at: new Date().toISOString() }
+              : w
+          ),
+        })),
     }),
     {
       name: 'last-signal-trip-store',
       storage: createJSONStorage(() => AsyncStorage),
+      onRehydrateStorage: () => (state) => {
+        console.log("[tripStore rehydration] Loaded state from AsyncStorage:", {
+          hasActiveTrip: !!state?.activeTrip,
+          dangerZonesCount: state?.dangerZones?.length ?? 0,
+          waypointsCount: state?.waypoints?.length ?? 0,
+          supplyDropsCount: state?.supplyDrops?.length ?? 0,
+        });
+        state?.setHasHydrated(true);
+      },
       partialize: (state) => ({
         supplyDrops: state.supplyDrops,
         lastFetchedAt: state.lastFetchedAt,
         oxygen: state.oxygen,
         activeTrip: state.activeTrip,
+        dangerZones: state.dangerZones,   // ✅ agregar
+        waypoints: state.waypoints,
       }),
     }
   )

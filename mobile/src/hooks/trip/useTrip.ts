@@ -1,10 +1,11 @@
 // src/hooks/trip/useTrip.ts
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useRouter } from "expo-router";
 import { TripRecord, useTripStore } from "@/store/tripStore";
 import { tripService } from "@/services/trip/tripService";
 import { offlineQueue } from "@/services/trip/offlineQueue";
 import { ensureSupplyDrops } from "@/services/trip/supplyDropService";
+import { generateDangerZones } from "@/services/trip/dangerZoneService";
 import * as Location from "expo-location";
 
 export interface UseTripReturn {
@@ -22,6 +23,8 @@ export interface UseTripReturn {
 
 export function useTrip(): UseTripReturn {
   const router = useRouter();
+  const endInProgress = useRef(false);
+
   const {
     activeTrip,
     oxygen,
@@ -30,6 +33,7 @@ export function useTrip(): UseTripReturn {
     updateDrop,
     addRoutePoint,
     setOxygenConsuming,
+    setDangerZones,
     clearRoute,
     resetOxygen,
   } = useTripStore();
@@ -41,8 +45,9 @@ export function useTrip(): UseTripReturn {
   const canEnd = !!activeTrip && activeTrip.status === "ACTIVE";
 
   // ── Iniciar viaje ──────────────────────────────────────────────────────────
+  // src/hooks/trip/useTrip.ts — start()
   const start = useCallback(async () => {
-    console.log("ACTIVE TRIP:", activeTrip);
+    console.log("[useTrip] Intentando iniciar viaje...");
     if (isStarting) return;
     setIsStarting(true);
 
@@ -66,19 +71,30 @@ export function useTrip(): UseTripReturn {
         return;
       }
 
-      if (!canStart) return;
+      // Lee del store directamente en lugar del closure
+      const currentOxygen = useTripStore.getState().oxygen.level;
+      if (currentOxygen <= 20) return;
 
-      const trip = await tripService.startTrip(oxygen.level);
+      const trip = await tripService.startTrip(currentOxygen);
       setActiveTrip(trip);
       setOxygenConsuming(true);
 
       const locationResult = await Location.getCurrentPositionAsync({});
-      await ensureSupplyDrops(
-        locationResult.coords.latitude,
-        locationResult.coords.longitude,
-      ).catch((err) =>
+      const { latitude, longitude } = locationResult.coords;
+
+      await ensureSupplyDrops(latitude, longitude).catch((err) =>
         console.error("[useTrip] Error al generar drops iniciales:", err),
       );
+
+      const zones = await generateDangerZones(
+        trip.id,
+        latitude,
+        longitude,
+      ).catch((err) => {
+        console.error("[useTrip] Error al generar danger zones:", err);
+        return [];
+      });
+      setDangerZones(zones);
 
       router.push("/(app)/(tabs)/trips/active");
     } catch (err) {
@@ -87,51 +103,42 @@ export function useTrip(): UseTripReturn {
     } finally {
       setIsStarting(false);
     }
-  }, [
-    isStarting,
-    canStart,
-    oxygen.level,
-    setActiveTrip,
-    setOxygenConsuming,
-    router,
-  ]);
+  }, [isStarting, setActiveTrip, setOxygenConsuming, setDangerZones, router]);
+  // ↑ canStart y oxygen.level ya no están en las dependencias
 
-  // ── Finalizar viaje (llega a la nave) ─────────────────────────────────────
+  // ── Finalizar viaje ────────────────────────────────────────────────────────
   const end = useCallback(async () => {
-    if (!canEnd || isEnding || !activeTrip) return;
+    console.log(
+      "[end] llamado — endInProgress:",
+      endInProgress.current,
+      "activeTrip:",
+      activeTrip?.id,
+    );
+    if (endInProgress.current || !activeTrip) return;
+    endInProgress.current = true;
     setIsEnding(true);
+
+    // En end() de useTrip.ts — reemplaza el try block
     try {
       const oxygenConsumed = parseFloat(
         (activeTrip.initial_oxygen - oxygen.level).toFixed(2),
       );
-
-      // 1. Actualiza oxígeno consumido
       await tripService.updateOxygenConsumed(activeTrip.id, oxygenConsumed);
-      // 2. Completa el viaje en el backend
-      const completed = await tripService.completeTrip(activeTrip.id);
+      await tripService.completeTrip(activeTrip.id);
 
-      setActiveTrip(completed);
       setOxygenConsuming(false);
-      router.push("/(app)/(tabs)/trips/summary");
-    } catch (err) {
-      // Sin conexión: encolar para cuando vuelva
+      // El tripStatus cambia a COMPLETED → index.tsx muestra TripSummaryView automáticamente
+      setActiveTrip({ ...activeTrip, status: "COMPLETED" });
+      endInProgress.current = false;
+    } catch {
       await offlineQueue.enqueueComplete(activeTrip.id, oxygen.level);
       setOxygenConsuming(false);
-      router.push("/(app)/(tabs)/trips/summary");
+      setActiveTrip({ ...activeTrip, status: "COMPLETED" });
+      endInProgress.current = false;
     } finally {
       setIsEnding(false);
     }
-  }, [
-    canEnd,
-    isEnding,
-    activeTrip,
-    oxygen.level,
-    setActiveTrip,
-    setOxygenConsuming,
-    router,
-  ]);
-
-  
+  }, [activeTrip, oxygen.level, setActiveTrip, setOxygenConsuming, router]);
 
   // ── Confirmar regreso y limpiar estado ────────────────────────────────────
   const completeReturn = useCallback(async () => {
@@ -143,20 +150,21 @@ export function useTrip(): UseTripReturn {
 
   // ── Recolectar suministro ─────────────────────────────────────────────────
   const collectDrop = useCallback(
-      async (dropId: string) => {
-        if (!activeTrip) return;
-
-        markDropCollected(dropId, activeTrip.id);
-
-        try {
-          const updatedDrop = await tripService.collectDrop(dropId, activeTrip.id);
-          updateDrop(updatedDrop);
-        } catch {
-          await offlineQueue.enqueueCollect(dropId, activeTrip.id);
-        }
-      },
-      [activeTrip, markDropCollected, updateDrop],
-    );
+    async (dropId: string) => {
+      if (!activeTrip) return;
+      markDropCollected(dropId, activeTrip.id);
+      try {
+        const updatedDrop = await tripService.collectDrop(
+          dropId,
+          activeTrip.id,
+        );
+        updateDrop(updatedDrop);
+      } catch {
+        await offlineQueue.enqueueCollect(dropId, activeTrip.id);
+      }
+    },
+    [activeTrip, markDropCollected, updateDrop],
+  );
 
   const logPosition = useCallback(
     (coords: { latitude: number; longitude: number }) => {

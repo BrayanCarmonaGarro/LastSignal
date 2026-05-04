@@ -16,7 +16,7 @@ export function SupplyDropMarker({ supply, onPress }: Props) {
       coordinate={{ latitude: supply.latitude, longitude: supply.longitude }}
       icon={isCollected ? '✓' : '📦'}
       color={isCollected ? '#22c55e' : '#f59e0b'}
-      size="md"
+      size="sm"
       shape="circle"
       status={isCollected ? 'collected' : 'active'}
       callout={{

@@ -1,3 +1,4 @@
+// src/app/(app)/(tabs)/trips/summary.tsx
 import React from "react";
 import {
   View,
@@ -15,6 +16,7 @@ export default function TripSummaryScreen() {
   const insets = useSafeAreaInsets();
   const {
     activeTrip,
+    isHydrated,
     routePoints,
     formattedDuration,
     resources,
@@ -23,6 +25,16 @@ export default function TripSummaryScreen() {
     handleFinish,
   } = useTripSummary();
 
+  // Esperando que AsyncStorage hidrate el store
+  if (!isHydrated) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color="#00d4ff" size="large" />
+      </View>
+    );
+  }
+
+  // Store hidratado pero sin trip — no debería pasar en flujo normal
   if (!activeTrip) {
     return (
       <View style={styles.center}>
@@ -79,79 +91,19 @@ export default function TripSummaryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#080818",
-    paddingHorizontal: 16,
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  errorText: {
-    color: "#ff8888",
-    fontSize: 14,
-  },
-  header: {
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  title: {
-    color: "#dde0ff",
-    fontSize: 22,
-    fontWeight: "800",
-  },
-  subtitle: {
-    color: "#8888aa",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  stats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  stat: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statValue: {
-    color: "#00d4ff",
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  statLabel: {
-    color: "#8888aa",
-    fontSize: 11,
-    marginTop: 4,
-  },
-  section: {
-    marginTop: 10,
-  },
-  sectionTitle: {
-    color: "#8888aa",
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  footer: {
-    marginTop: "auto",
-    paddingVertical: 20,
-  },
-  button: {
-    backgroundColor: "#00d4ff15",
-    borderWidth: 1,
-    borderColor: "#00d4ff40",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#00d4ff",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
+  container:    { flex: 1, backgroundColor: "#080818", paddingHorizontal: 16 },
+  center:       { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#080818" },
+  errorText:    { color: "#ff8888", fontSize: 14 },
+  header:       { marginTop: 20, marginBottom: 20 },
+  title:        { color: "#dde0ff", fontSize: 22, fontWeight: "800" },
+  subtitle:     { color: "#8888aa", fontSize: 12, marginTop: 4 },
+  stats:        { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+  stat:         { alignItems: "center", flex: 1 },
+  statValue:    { color: "#00d4ff", fontSize: 18, fontWeight: "800" },
+  statLabel:    { color: "#8888aa", fontSize: 11, marginTop: 4 },
+  section:      { marginTop: 10 },
+  sectionTitle: { color: "#8888aa", fontSize: 11, fontWeight: "700", letterSpacing: 1, marginBottom: 10 },
+  footer:       { marginTop: "auto", paddingVertical: 20 },
+  button:       { backgroundColor: "#00d4ff15", borderWidth: 1, borderColor: "#00d4ff40", borderRadius: 14, paddingVertical: 16, alignItems: "center" },
+  buttonText:   { color: "#00d4ff", fontSize: 14, fontWeight: "800", letterSpacing: 1 },
 });
