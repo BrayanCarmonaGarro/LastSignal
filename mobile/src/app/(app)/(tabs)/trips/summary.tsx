@@ -1,108 +1,27 @@
-// src/app/(app)/(tabs)/trips/summary.tsx
-import React, { useMemo, useState, useCallback } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTrip } from "@/hooks/trip/useTrip";
-import { useSupplies } from "@/hooks/trip/useSupplies";
-import { offlineQueue } from "@/services/trip/offlineQueue";
+import { useTripSummary } from "@/hooks/trip/useTripSummary";
 import { ResourceCounter } from "@/components/trips/ResourceCounter";
-import { useTripStore } from "@/store/tripStore";
-import type { SupplyDropItem } from "@/store/tripStore";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${s}s`;
-}
-
-function getDuration(start: string, end?: string | null): number {
-  if (!end) return 0;
-  return Math.floor(
-    (new Date(end).getTime() - new Date(start).getTime()) / 1000,
-  );
-}
-
-function summarizeItems(items: SupplyDropItem[]) {
-  console.log('=== summarizeItems ===');
-  console.log('Total items:', items.length);
-  items.forEach((item, i) => {
-    console.log(`Item ${i}:`, JSON.stringify(item, null, 2));
-  });
-  const map = new Map<
-    string,
-    { resourceId: string; name: string; quantity: number; unit: string }
-  >();
-
-  for (const item of items) {
-    const key = item.base_resource_id;
-
-    const name = item.base_resource?.name ?? "Recurso";
-    const unit = item.base_resource?.unit ?? "u";
-
-    const existing = map.get(key);
-
-    if (existing) {
-      existing.quantity += item.amount;
-    } else {
-      map.set(key, {
-        resourceId: key,
-        name,
-        quantity: item.amount,
-        unit,
-      });
-    }
-  }
-
-  return Array.from(map.values());
-}
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function TripSummaryScreen() {
   const insets = useSafeAreaInsets();
-  const { activeTrip, completeReturn } = useTrip();
-  const { collectedDrops } = useSupplies();
-  const routePoints = useTripStore((s) => s.routePoints);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const duration = activeTrip
-    ? getDuration(activeTrip.started_at, activeTrip.ended_at)
-    : 0;
-
-  const allItems = activeTrip
-    ? collectedDrops
-        .filter((d) => d.trip_id === activeTrip.id)
-        .flatMap((d) => d.items)
-    : [];
-
-  const resources = useMemo(() => summarizeItems(allItems), [allItems]);
-  const totalItems = resources.reduce((s, i) => s + i.quantity, 0);
-
-  const handleFinish = useCallback(async () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await offlineQueue.flush();
-    } catch {
-      Alert.alert(
-        "Sin conexión",
-        "Los datos se sincronizarán cuando haya internet.",
-      );
-    } finally {
-      setIsSubmitting(false);
-      completeReturn();
-    }
-  }, [isSubmitting, completeReturn]);
+  const {
+    activeTrip,
+    routePoints,
+    formattedDuration,
+    resources,
+    totalItems,
+    isSubmitting,
+    handleFinish,
+  } = useTripSummary();
 
   if (!activeTrip) {
     return (
@@ -121,7 +40,7 @@ export default function TripSummaryScreen() {
 
       <View style={styles.stats}>
         <View style={styles.stat}>
-          <Text style={styles.statValue}>{formatDuration(duration)}</Text>
+          <Text style={styles.statValue}>{formattedDuration}</Text>
           <Text style={styles.statLabel}>Duración</Text>
         </View>
         <View style={styles.stat}>
@@ -158,8 +77,6 @@ export default function TripSummaryScreen() {
     </View>
   );
 }
-
-// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {

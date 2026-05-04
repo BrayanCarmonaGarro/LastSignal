@@ -1,17 +1,16 @@
 // src/app/(app)/(tabs)/trips/active.tsx
-import React, { useEffect, useRef, useCallback } from "react";
+import React from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   StatusBar,
 } from "react-native";
 import MapView, { Polyline, PROVIDER_GOOGLE } from "react-native-maps";
-import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
+import { useActiveTripScreen } from "@/hooks/trip/useActiveTripScreen";
+import * as Location from "expo-location";
 import { useTrip } from "@/hooks/trip/useTrip";
 import { useOxygen } from "@/hooks/trip/useOxygen";
 import { useSupplies } from "@/hooks/trip/useSupplies";
@@ -51,108 +50,19 @@ const DARK_MAP_STYLE = [
 
 export default function ActiveTripScreen() {
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<MapView>(null);
+  const {
+    mapRef,
+    oxygen,
+    canEnd,
+    routePoints,
+    supplyDrops,
+    collectedCount,
+    totalSupplies,
+    handleEndTrip,
+    handleDropPress,
+  } = useActiveTripScreen();
 
-  const { activeTrip, canEnd, end, collectDrop, logPosition } = useTrip();
-  const { level, oxygenStatus, minutesRemaining, isConsuming } = useOxygen();
-  const { supplyDrops } = useSupplies();
-  const routePoints = useTripStore((s) => s.routePoints);
-  const baseCoordinate = routePoints[0] ?? null;
-
-  useEffect(() => {
-    let sub: Location.LocationSubscription | null = null;
-
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-
-      sub = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 5,
-        },
-        (location) => {
-          const coords = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          };
-          logPosition(coords);
-          mapRef.current?.animateCamera({ center: coords }, { duration: 800 });
-        },
-      );
-    })();
-
-    return () => {
-      sub?.remove();
-    };
-  }, [logPosition]);
-
-  useEffect(() => {
-    if (oxygenStatus === "critical") {
-      Alert.alert(
-        "⚠️ OXÍGENO CRÍTICO",
-        `Solo quedan ${minutesRemaining} minutos. Regresa a la nave inmediatamente.`,
-        [{ text: "Entendido" }],
-      );
-    }
-    if (oxygenStatus === "empty") {
-      Alert.alert(
-        "🚨 OXÍGENO AGOTADO",
-        "El viaje se ha terminado por seguridad.",
-        [{ text: "OK", onPress: end }],
-      );
-    }
-  }, [oxygenStatus]);
-
-  const handleEndTrip = useCallback(() => {
-    Alert.alert(
-      "Finalizar viaje",
-      "¿Seguro que quieres terminar la exploración y regresar a la nave?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "Terminar", style: "destructive", onPress: end },
-      ],
-    );
-  }, [end]);
-
-  const handleDropPress = useCallback(
-    (drop: SupplyDrop) => {
-      if (drop.collected_at) return;
-      Alert.alert(
-        `Recolectar: ${drop.id}`,
-        `Contiene ${drop.items.length} tipo(s) de recurso.`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Recolectar ✓",
-            onPress: () => collectDrop(drop.id),
-          },
-        ],
-      );
-    },
-    [collectDrop],
-  );
-
-  // UPDATE: MARKERS
-  const handleWaypointPress = useCallback(
-    (latitude: number, longitude: number) => {
-      mapRef.current?.animateCamera(
-        { center: { latitude, longitude }, zoom: 16 },
-        { duration: 600 },
-      );
-    },
-    [],
-  );
-
-  // UPDATE: MARKERS
-  const handleDangerZonePress = useCallback((description: string) => {
-    Alert.alert("Zona peligrosa", description);
-  }, []);
-
-  const collectedCount = supplyDrops.filter(
-    (d) => d.status === "COLLECTED",
-  ).length;
-  const totalSupplies = supplyDrops.length;
+  const { level, oxygenStatus, minutesRemaining, isConsuming } = oxygen;
 
   return (
     <View style={styles.container}>
