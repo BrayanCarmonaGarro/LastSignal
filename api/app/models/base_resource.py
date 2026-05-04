@@ -36,4 +36,4 @@ class BaseResource(UUIDMixin, Base):
     is_critical   = Column(Boolean, nullable=False, default=False)
     created_at    = Column(DateTime, default=datetime.utcnow)
 
-    resources = relationship("Resource", back_populates="base_resource")
+    inventory_resources = relationship("InventoryResource", back_populates="base_resource")
