@@ -1,9 +1,11 @@
-# Schemas/trip.py
+# app/schemas/trip.py
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 from pydantic import BaseModel
 from app.models.trip import TripStatus
+from app.schemas.trip_waypoint import WaypointResponse
+from app.schemas.trip_danger_zone import DangerZoneResponse
 
 
 class TripCreate(BaseModel):
@@ -28,8 +30,8 @@ class TripResponse(BaseModel):
     oxygen_consumed: float
     status: TripStatus
     user_id: UUID
-    waypoints: Optional[List] = []
-    danger_zones: Optional[List] = []
+    waypoints: List[WaypointResponse] = []
+    danger_zones: List[DangerZoneResponse] = []
 
     class Config:
         from_attributes = True
