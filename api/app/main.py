@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError
 
 from app.core.database import Base, engine, SessionLocal
-from app.routers import achievements, logbook, resources, supply_drops, sync, trips, dashboard, users
+from app.routers import achievements, logbook, inventory, supply_drops, sync, trips, dashboard, users, ship_bases, base_storage
 
 import app.models  # noqa: F401 — registra todos los modelos en SQLAlchemy
 
@@ -46,13 +46,15 @@ app.add_middleware(
 
 PREFIX = "/api/v1"
 app.include_router(logbook.router, prefix=PREFIX)
-app.include_router(resources.router, prefix=PREFIX)
+app.include_router(inventory.router, prefix=PREFIX)
 app.include_router(trips.router, prefix=PREFIX)
 app.include_router(supply_drops.router, prefix=PREFIX)
 app.include_router(achievements.router, prefix=PREFIX)
 app.include_router(sync.router, prefix=PREFIX)
 app.include_router(dashboard.router, prefix=PREFIX)
 app.include_router(users.router, prefix=PREFIX)
+app.include_router(ship_bases.router, prefix=PREFIX)
+app.include_router(base_storage.router, prefix=PREFIX)
 
 
 @app.get("/health", tags=["Sistema"])

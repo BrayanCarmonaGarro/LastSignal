@@ -14,9 +14,16 @@ import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTripsScreen } from "@/hooks/trip/useTripsScreen";
-import { OxygenBar } from "@/components/trips/OxygenBar";
-import { SupplyCard } from "@/components/trips/SupplyCard";
-import { MapMarker } from "@/components/trips/MapMarker";
+import { useTrip } from '@/hooks/trip/useTrip';
+import { useOxygen } from '@/hooks/trip/useOxygen';
+import { useSupplies } from '@/hooks/trip/useSupplies';
+import { OxygenBar } from '@/components/trips/OxygenBar';
+import { SupplyCard } from '@/components/trips/SupplyCard';
+import { MapMarker } from '@/components/trips/markers/MapMarker';
+import { tripService } from '@/services/trip/tripService';
+import { useTripStore } from '@/store/tripStore';
+import type { SupplyDrop } from '@/store/tripStore';
+import * as Location from 'expo-location';
 
 const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0d0d1a" }] },

@@ -2,7 +2,7 @@
 from typing import List
 from sqlalchemy.orm import Session
 from app.models.logbook import LogbookEntry, LifeFormCategory, DangerLevel, SyncStatus
-from app.models.resource import Resource
+from app.models.inventory_resource import InventoryResource
 from app.models.resource_log import ResourceLog, ResourceLogType
 
 def process_sync_operations(operations: List[dict], user_id: str, db: Session) -> dict:
@@ -55,9 +55,10 @@ def _sync_create_logbook_entry(data: dict, user_id: str, db: Session):
 
 def _sync_create_resource_log(data: dict, user_id: str, db: Session):
     log = ResourceLog(
-        resource_id=data.get("resource_id"),
+        inventory_resource_id=data.get("inventory_resource_id"),
         type=ResourceLogType(data.get("type", "EXPENSE")),
         amount=float(data.get("amount", 0)),
         reason=data.get("reason"),
+        trip_id=data.get("trip_id"),
     )
     db.add(log)

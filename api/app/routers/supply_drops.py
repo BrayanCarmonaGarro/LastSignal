@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.security import get_current_user, resolve_db_user
-from app.models.resource import Resource
+from app.models.inventory_resource import InventoryResource
 from app.models.supply_drop import SupplyDrop, SupplyDropStatus
 from app.models.supply_drop_item import SupplyDropItem
 from app.schemas.supply_drop import (
@@ -150,25 +150,23 @@ async def collect_supply_drop(
         base = item.base_resource  # ya cargado por joinedload
 
         existing = (
-            db.query(Resource)
+            db.query(InventoryResource)
             .filter(
-                Resource.user_id == user.id,
-                Resource.base_resource_id == base.id,  # ← buscar por base_resource_id
+                InventoryResource.user_id == user.id,
+                InventoryResource.base_resource_id == base.id,  # ← buscar por base_resource_id
             )
             .first()
         )
 
         if existing:
             existing.current_amount += item.amount
-            existing.is_critical = existing.current_amount <= base.min_threshold
         else:
-            new_resource = Resource(
+            new_inventory = InventoryResource(
                 base_resource_id=base.id,
                 current_amount=item.amount,
-                is_critical=item.amount <= base.min_threshold,
                 user_id=user.id,
             )
-            db.add(new_resource)
+            db.add(new_inventory)
 
     # ── Marcar el drop como recolectado ──────────────────────────────────────
     drop.status = SupplyDropStatus.COLLECTED

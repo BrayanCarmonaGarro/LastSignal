@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.security import get_current_user, resolve_db_user
 from app.models.logbook import LogbookEntry
-from app.models.resource import Resource
+from app.models.inventory_resource import InventoryResource
 from app.models.trip import Trip, TripStatus
 from app.models.user_achievement import UserAchievement
-from app.routers.resources import serialize_resource
+from app.routers.inventory import serialize_inventory
 from app.schemas.achievement import UserAchievementResponse
 from app.schemas.logbook import LogbookEntryResponse
-from app.schemas.resource import ResourceResponse
+from app.schemas.inventory_resource import InventoryResourceResponse
 from app.schemas.user import (
     ActiveTripSummary,
     DashboardResponse,
@@ -32,25 +32,25 @@ async def get_dashboard(
 
     total_logbook = db.query(LogbookEntry).filter(LogbookEntry.user_id == user.id).count()
 
-    resources = (
-        db.query(Resource)
-        .options(joinedload(Resource.base_resource))
-        .filter(Resource.user_id == user.id)
+    inventory = (
+        db.query(InventoryResource)
+        .options(joinedload(InventoryResource.base_resource))
+        .filter(InventoryResource.user_id == user.id)
         .all()
     )
-    total_resources = len(resources)
+    total_resources = len(inventory)
     critical_below = sum(
-        1 for r in resources if r.current_amount <= r.base_resource.min_threshold
+        1 for r in inventory if r.current_amount <= r.base_resource.min_threshold
     )
 
     category_map: dict = defaultdict(list)
-    for r in resources:
+    for r in inventory:
         category_map[r.base_resource.category.value].append(r)
 
     resource_groups = [
         ResourceCategoryGroup(
             category=cat,
-            resources=[ResourceResponse(**serialize_resource(r)) for r in rs],
+            resources=[InventoryResourceResponse(**serialize_inventory(r)) for r in rs],
             critical_count=sum(
                 1 for r in rs if r.current_amount <= r.base_resource.min_threshold
             ),

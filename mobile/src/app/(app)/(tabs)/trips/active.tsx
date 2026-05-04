@@ -9,10 +9,21 @@ import {
 } from "react-native";
 import MapView, { Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { useActiveTripScreen } from "@/hooks/trip/useActiveTripScreen";
+import * as Location from "expo-location";
+import { useTrip } from "@/hooks/trip/useTrip";
+import { useOxygen } from "@/hooks/trip/useOxygen";
+import { useSupplies } from "@/hooks/trip/useSupplies";
 import { OxygenBar } from "@/components/trips/OxygenBar";
-import { MapMarker } from "@/components/trips/MapMarker";
+import { SupplyDropMarker } from "@/components/trips/markers/SupplyDropMarker";
+// UPDATE: MARKERS
+import {
+  WaypointMarker,
+  DangerZoneMarker,
+  BaseMapMarker,
+} from "@/components/trips/markers";
+import { useTripStore } from "@/store/tripStore";
+import type { SupplyDrop } from "@/store/tripStore";
 
 const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0d0d1a" }] },
@@ -81,11 +92,31 @@ export default function ActiveTripScreen() {
         )}
 
         {supplyDrops.map((drop) => (
-          <MapMarker key={drop.id} supply={drop} onPress={handleDropPress} />
+          <SupplyDropMarker
+            key={drop.id}
+            supply={drop}
+            onPress={handleDropPress}
+          />
         ))}
+
+        {/* UPDATE: MARKERS */}
+        {baseCoordinate && (
+          <BaseMapMarker
+            coordinate={baseCoordinate}
+            icon="🚀"
+            color="#00d4ff"
+            size="lg"
+            shape="circle"
+            pulseAnim
+            callout={{
+              title: "Nave base",
+              subtitle: "Punto de retorno",
+              badge: { label: `${minutesRemaining} min O₂`, color: "#00d4ff" },
+            }}
+          />
+        )}
       </MapView>
 
-      {/* HUD superior */}
       <View style={[styles.hudTop, { paddingTop: insets.top + 8 }]}>
         <View style={styles.hudCard}>
           <OxygenBar
@@ -97,7 +128,6 @@ export default function ActiveTripScreen() {
         </View>
       </View>
 
-      {/* HUD inferior */}
       <View style={[styles.hudBottom, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
