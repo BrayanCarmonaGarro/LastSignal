@@ -18,7 +18,7 @@ import { useOxygen } from '@/hooks/trip/useOxygen';
 import { useSupplies } from '@/hooks/trip/useSupplies';
 import { OxygenBar } from '@/components/trips/OxygenBar';
 import { SupplyCard } from '@/components/trips/SupplyCard';
-import { MapMarker } from '@/components/trips/markers/MapMarker';
+import { SupplyDropMarker } from '@/components/trips/markers/SupplyDropMarker';
 import { tripService } from '@/services/trip/tripService';
 import { useTripStore } from '@/store/tripStore';
 import type { SupplyDrop } from '@/store/tripStore';

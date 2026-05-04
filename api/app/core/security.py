@@ -72,6 +72,11 @@ async def resolve_db_user(current_user: dict, db):
         db.add(user)
         db.commit()
         db.refresh(user)
+        try:
+            from app.services.inventory_service import initialize_user_inventory
+            initialize_user_inventory(db, user.id)
+        except Exception:
+            pass
     else:
         dirty = False
         if token_display_name and user.display_name != token_display_name:
