@@ -139,7 +139,7 @@ export const useTripStore = create<TripStoreState>()(
         lastFetchedAt: state.lastFetchedAt,
         oxygen: state.oxygen,
         activeTrip: state.activeTrip,
-        dangerZones: state.dangerZones,   // ✅ agregar
+        dangerZones: state.dangerZones,
         waypoints: state.waypoints,
       }),
     }

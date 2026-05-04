@@ -6,7 +6,7 @@ interface Props {
   coordinate: { latitude: number; longitude: number };
   label?: string;
   severity?: 'low' | 'medium' | 'high';
-  onPress?: () => void;
+  onPress?: (description: string) => void;
 }
 
 const SEVERITY_COLOR = { low: '#f59e0b', medium: '#f97316', high: '#ef4444' };
@@ -27,9 +27,9 @@ export function DangerZoneMarker({ coordinate, label, severity = 'medium', onPre
         title: 'Zona de peligro',
         badge: { label: severity.toUpperCase(), color },
         subtitle: label,
-        actions: onPress ? [{ label: 'Ver detalles', onPress }] : [],
+        actions: onPress ? [{ label: 'Ver detalles', onPress: () => onPress(label ?? 'Sin descripción') }] : [],
       }}
-      onPress={onPress}
+      onPress={onPress ? () => onPress(label ?? 'Sin descripción') : undefined}
     />
   );
 }
