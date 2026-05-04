@@ -1,4 +1,3 @@
-
 const MS_PER_HOUR = 3_600_000;
 const MS_PER_MINUTE = 60_000;
 
@@ -17,4 +16,17 @@ export function formatElapsed(startedAt: string): string {
   const m = Math.floor((diffMs % MS_PER_HOUR) / MS_PER_MINUTE);
   if (h > 0) return `${h}h ${m}m`;
   return `${m}m`;
+}
+
+export function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+}
+
+export function getDuration(start: string, end?: string | null): number {
+  if (!end) return 0;
+  return Math.floor(
+    (new Date(end).getTime() - new Date(start).getTime()) / 1000,
+  );
 }
