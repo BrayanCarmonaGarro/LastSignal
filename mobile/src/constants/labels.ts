@@ -1,5 +1,5 @@
 import type { ResourceUnit } from '@/types/resource.types';
-import type { LifeFormCategory } from '@/types/logbook.types';
+import type { DangerLevel, LifeFormCategory } from '@/types/logbook.types';
 
 export const UNIT_LABELS: Record<ResourceUnit, string> = {
   LITERS: 'L',
@@ -17,4 +17,10 @@ export const CLASSIFICATION_LABELS: Record<LifeFormCategory, string> = {
   MINERAL: 'Mineral',
   FUNGI: 'Hongo',
   UNKNOWN_ORGANISM: 'Desconocido',
+};
+
+export const DANGER_LABELS: Record<DangerLevel, string> = {
+  DANGEROUS: 'Peligroso',
+  FRIENDLY: 'Amigable',
+  UNKNOWN: 'Desconocido',
 };

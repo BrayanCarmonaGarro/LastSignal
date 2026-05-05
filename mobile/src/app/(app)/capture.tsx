@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { CameraView } from 'expo-camera';
+import { useRouter } from 'expo-router';
 import * as MediaLibrary from 'expo-media-library';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useCamera } from '@/hooks/useCamera';
@@ -16,7 +17,8 @@ import { storageApi } from '@/services/api/storage.api';
 import { aiApi } from '@/services/api/ai.api';
 import { logbookApi } from '@/services/api/logbook.api';
 
-export default function NewEntryScreen() {
+export default function CaptureScreen() {
+  const router = useRouter();
   const {
     cameraRef,
     cameraStatus,
@@ -87,7 +89,11 @@ export default function NewEntryScreen() {
         danger_level:   aiData.danger_level   || 'UNKNOWN',
       });
 
-      Alert.alert('¡Análisis completo!', `🧬 ${aiData.description}\n\n⚠️ ${aiData.danger_level}`);
+      Alert.alert(
+        '¡Análisis completo!',
+        `🧬 ${aiData.description}\n\n⚠️ ${aiData.danger_level}`,
+        [{ text: 'Ver Bitácora', onPress: () => router.back() }, { text: 'OK' }],
+      );
       clearPhoto();
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Error desconocido');
@@ -96,8 +102,6 @@ export default function NewEntryScreen() {
       setProcessingStatus('');
     }
   };
-
-  // ─── Vistas condicionales ─────────────────────────────────
 
   if (cameraStatus === 'loading') {
     return (
@@ -131,6 +135,11 @@ export default function NewEntryScreen() {
           </View>
         )}
 
+        {/* Back button */}
+        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <Text style={s.backText}>←</Text>
+        </TouchableOpacity>
+
         <View style={s.previewControls}>
           <View style={s.row}>
             <TouchableOpacity style={[s.btn, s.btnGray]} onPress={() => saveToGallery(lastPhoto.uri)}>
@@ -140,11 +149,7 @@ export default function NewEntryScreen() {
               <Text style={s.btnText}>Nueva Foto</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={[s.btn, s.btnBlue]}
-            onPress={handleCreateLogbook}
-            disabled={isProcessing}
-          >
+          <TouchableOpacity style={[s.btn, s.btnBlue]} onPress={handleCreateLogbook} disabled={isProcessing}>
             <Text style={s.btnTextLg}>Crear Logbook con IA 🚀</Text>
           </TouchableOpacity>
           {error ? <Text style={s.error}>{error}</Text> : null}
@@ -155,6 +160,11 @@ export default function NewEntryScreen() {
 
   return (
     <View style={s.container}>
+      {/* Back button */}
+      <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+        <Text style={s.backText}>←</Text>
+      </TouchableOpacity>
+
       <CameraView ref={cameraRef} style={s.camera} facing={facing} flash={flashMode}>
         <View style={s.controls}>
           <TouchableOpacity style={s.iconBtn} onPress={toggleFlash}>
@@ -177,13 +187,13 @@ export default function NewEntryScreen() {
 
 const s = StyleSheet.create({
   container:        { flex: 1, backgroundColor: '#000' },
-  center:           { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#fff' },
+  center:           { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#000' },
   camera:           { flex: 1, justifyContent: 'flex-end' },
   controls:         { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingBottom: 40, paddingHorizontal: 20 },
   captureBtn:       { width: 70, height: 70, borderRadius: 35, backgroundColor: '#fff', borderWidth: 4, borderColor: 'rgba(0,0,0,0.2)' },
   iconBtn:          { padding: 15, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 30 },
   iconText:         { fontSize: 18, color: '#fff' },
-  text:             { fontSize: 16, textAlign: 'center', marginBottom: 20 },
+  text:             { fontSize: 16, textAlign: 'center', marginBottom: 20, color: '#fff' },
   btn:              { padding: 15, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   btnText:          { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   btnTextLg:        { color: '#fff', fontSize: 18, fontWeight: 'bold' },
@@ -193,8 +203,10 @@ const s = StyleSheet.create({
   preview:          { flex: 1, width: '100%' },
   previewControls:  { position: 'absolute', bottom: 30, left: 20, right: 20, gap: 15 },
   row:              { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-  processingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  processingOverlay:{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', zIndex: 10 },
   processingText:   { color: '#00FF00', marginTop: 15, fontSize: 16, fontWeight: 'bold', textAlign: 'center', paddingHorizontal: 20 },
   errorContainer:   { position: 'absolute', top: 50, left: 20, right: 20, backgroundColor: 'rgba(255,0,0,0.7)', padding: 10, borderRadius: 8 },
   error:            { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
+  backBtn:          { position: 'absolute', top: 50, left: 16, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  backText:         { color: '#fff', fontSize: 20 },
 });

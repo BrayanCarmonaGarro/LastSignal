@@ -1,8 +1,16 @@
 const MS_PER_HOUR = 3_600_000;
 const MS_PER_MINUTE = 60_000;
 
+function parseDate(raw: string): Date {
+  // Agrega 'Z' si no tiene info de zona horaria (evita que JS lo trate como local)
+  if (!raw) return new Date(NaN);
+  if (raw.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(raw)) return new Date(raw);
+  return new Date(raw.replace(' ', 'T') + 'Z');
+}
+
 export function relativeTime(isoDate: string): string {
-  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const diffMs = Date.now() - parseDate(isoDate).getTime();
+  if (!isFinite(diffMs) || diffMs < 0) return 'Reciente';
   const minutes = Math.floor(diffMs / 60_000);
   if (minutes < 60) return `Hace ${minutes}m`;
   const hours = Math.floor(minutes / 60);
