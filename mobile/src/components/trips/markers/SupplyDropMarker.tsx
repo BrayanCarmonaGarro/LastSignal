@@ -1,29 +1,34 @@
 // src/components/trips/markers/SupplyDropMarker.tsx
 import React from 'react';
-import { BaseMapMarker } from './BaseMapMarker';
+import { BaseOverlayMarker } from './BaseOverlayMarker';
 import type { SupplyDrop } from '@/store/tripStore';
 
 interface Props {
   supply: SupplyDrop;
+  screenX: number;
+  screenY: number;
   onPress?: (supply: SupplyDrop) => void;
+  showCallout?: boolean;
 }
 
-export function SupplyDropMarker({ supply, onPress }: Props) {
+export function SupplyDropMarker({ supply, screenX, screenY, onPress, showCallout = true }: Props) {
   const isCollected = supply.status === 'COLLECTED';
+  const color = isCollected ? '#22c55e' : '#f59e0b';
 
   return (
-    <BaseMapMarker
-      coordinate={{ latitude: supply.latitude, longitude: supply.longitude }}
+    <BaseOverlayMarker
+      screenX={screenX}
+      screenY={screenY}
       icon={isCollected ? '✓' : '📦'}
-      color={isCollected ? '#22c55e' : '#f59e0b'}
+      color={color}
       size="sm"
       shape="circle"
       status={isCollected ? 'collected' : 'active'}
-      callout={{
+      callout={showCallout ? {
         title: 'Suministro',
         badge: {
           label: isCollected ? 'Recolectado' : `${supply.items?.length ?? 0} items`,
-          color: isCollected ? '#22c55e' : '#f59e0b',
+          color,
         },
         actions: [
           {
@@ -32,7 +37,7 @@ export function SupplyDropMarker({ supply, onPress }: Props) {
             onPress: () => !isCollected && onPress?.(supply),
           },
         ],
-      }}
+      } : undefined}
       onPress={() => onPress?.(supply)}
     />
   );

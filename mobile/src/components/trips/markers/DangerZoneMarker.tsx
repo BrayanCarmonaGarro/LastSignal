@@ -1,35 +1,54 @@
 // src/components/trips/markers/DangerZoneMarker.tsx
-import React from 'react';
-import { BaseMapMarker } from './BaseMapMarker';
+import React from "react";
+import { BaseOverlayMarker } from "./BaseOverlayMarker";
+import { MaterialIcons } from "@expo/vector-icons";
+import type { TripDangerZone } from "@/store/tripStore";
 
 interface Props {
-  coordinate: { latitude: number; longitude: number };
-  label?: string;
-  severity?: 'low' | 'medium' | 'high';
-  onPress?: (description: string) => void;
+  screenX: number;
+  screenY: number;
+  zone: TripDangerZone;
+  showCallout?: boolean;
 }
 
-const SEVERITY_COLOR = { low: '#f59e0b', medium: '#f97316', high: '#ef4444' };
+const SEVERITY_COLOR = {
+  LOW: "#f59e0b",
+  MEDIUM: "#f97316",
+  HIGH: "#ef4444",
+};
 
-export function DangerZoneMarker({ coordinate, label, severity = 'medium', onPress }: Props) {
-  const color = SEVERITY_COLOR[severity];
+export function DangerZoneMarker({
+  screenX,
+  screenY,
+  zone,
+  showCallout = true,
+  onPress,
+}: Props & { onPress?: (zone: TripDangerZone) => void }) {
+  const color = SEVERITY_COLOR[zone.severity];
 
   return (
-    <BaseMapMarker
-      coordinate={coordinate}
-      icon="⚠️"
+    <BaseOverlayMarker
+      screenX={screenX}
+      screenY={screenY}
+      icon={<MaterialIcons name="warning" size={28} color={color} />}
       color={color}
-      size="md"
+      size="xl"
       shape="circle"
       status="danger"
-      pulseAnim              // <- anillo pulsante activado
-      callout={{
-        title: 'Zona de peligro',
-        badge: { label: severity.toUpperCase(), color },
-        subtitle: label,
-        actions: onPress ? [{ label: 'Ver detalles', onPress: () => onPress(label ?? 'Sin descripción') }] : [],
-      }}
-      onPress={onPress ? () => onPress(label ?? 'Sin descripción') : undefined}
+      pulseAnim
+      callout={
+        showCallout
+          ? {
+              title: "Zona de peligro",
+              badge: { label: zone.severity, color },
+              subtitle: zone.description ?? undefined,
+              actions: onPress
+                ? [{ label: "Ver detalles", onPress: () => onPress(zone) }]
+                : [],
+            }
+          : undefined
+      }
+      onPress={onPress ? () => onPress(zone) : undefined}
     />
   );
 }

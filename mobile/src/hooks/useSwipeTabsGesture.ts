@@ -1,3 +1,4 @@
+/*
 import { useEffect, useMemo, useRef } from "react";
 import { Animated, PanResponder, useWindowDimensions } from "react-native";
 import { useRouter, usePathname } from "expo-router";
@@ -181,3 +182,4 @@ export function useSwipeTabsGestureLogic(): SwipeTabsState {
     registerRefreshHandler,
   };
 }
+*/

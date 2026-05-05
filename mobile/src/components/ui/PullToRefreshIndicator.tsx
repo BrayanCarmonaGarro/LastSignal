@@ -1,3 +1,4 @@
+/*
 import React from "react";
 import { Animated, ActivityIndicator, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -86,3 +87,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+*/
