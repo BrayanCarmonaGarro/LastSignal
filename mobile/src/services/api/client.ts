@@ -2,8 +2,12 @@
 // Cliente HTTP centralizado con refresh automático del access token
 import { useAuthStore } from '@/store/authStore';
 
-const BASE_URL   = process.env.EXPO_PUBLIC_API_URL ?? 'https://gigabyte-proofing-factoid.ngrok-free.dev/api';
+const API_ORIGIN = process.env.EXPO_PUBLIC_API_URL ?? 'https://gigabyte-proofing-factoid.ngrok-free.dev';
 const API_PREFIX = '/api/v1';
+
+export function buildFileUrl(relativePath: string): string {
+  return `${API_ORIGIN}${API_PREFIX}/storage${relativePath}`;
+}
 
 // Mutex de refresh: evita que múltiples 401 simultáneos disparen varios refreshes
 let isRefreshing = false;
@@ -30,7 +34,7 @@ export async function apiRequest<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const doFetch = (accessToken: string | null) =>
-    fetch(`${BASE_URL}${API_PREFIX}${path}`, {
+    fetch(`${API_ORIGIN}${API_PREFIX}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
