@@ -21,6 +21,7 @@ import { LogbookRecentRow } from "@/components/dashboard/LogbookRecentRow";
 import { SectionHeader } from "@/components/dashboard/SectionHeader";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ProfileModal } from "@/components/dashboard/ProfileModal";
+import { RecentAchievementsSection } from "@/components/dashboard/RecentAchievementsSection";
 
 export default function DashboardScreen() {
   const theme = useTheme();
@@ -263,6 +264,10 @@ export default function DashboardScreen() {
             Sin entradas. Usa la cámara para registrar formas de vida.
           </Text>
         )}
+
+        <RecentAchievementsSection
+          achievements={data?.recent_achievements ?? []}
+        />
       </ScrollView>
 
       <ProfileModal
