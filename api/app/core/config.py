@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     keycloak_realm: str = "lastsignal"
     keycloak_client_id: str = "lastsignal-api"
     keycloak_client_secret: str = "changeme"
-    ai_api_key: str = ""
+    ai_api_key: str = "changeme"
     environment: str = "development"
 
     class Config:

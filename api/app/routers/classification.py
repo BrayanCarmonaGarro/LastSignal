@@ -5,7 +5,7 @@ import json
 from google import genai
 from google.genai import types
 import mimetypes
-from core.config import settings
+from app.core.config import settings
 
 router = APIRouter(prefix="/classification", tags=["AI Classificator"])
 
