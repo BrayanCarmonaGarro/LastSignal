@@ -162,7 +162,7 @@ export default function TripsIndexScreen() {
   const tripStatus = activeTrip?.status ?? null;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       {/* HEADER */}

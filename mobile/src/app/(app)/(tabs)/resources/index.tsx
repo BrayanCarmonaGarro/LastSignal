@@ -21,8 +21,8 @@ function toUIResource(r: Resource): UIResource {
   const maxAmount = MAX_AMOUNTS[r.name] ?? 100;
   const pct = maxAmount > 0 ? (r.current_amount / maxAmount) * 100 : 0;
   const status: ResourceStatus =
-    r.is_critical    ? 'CRITICAL' :
-    pct < 40         ? 'LOW' :
+    r.current_amount <= r.min_threshold ? 'CRITICAL' :
+    pct < 40                            ? 'LOW' :
     'NORMAL';
   return {
     ...r,
@@ -80,7 +80,7 @@ export default function ResourcesScreen() {
 
   if (loading && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -93,7 +93,7 @@ export default function ResourcesScreen() {
 
   if (error && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -107,7 +107,7 @@ export default function ResourcesScreen() {
 
   if (!loading && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -119,7 +119,7 @@ export default function ResourcesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
       <FlatList
         data={uiResources}

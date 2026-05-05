@@ -21,6 +21,7 @@ import { LogbookRecentRow } from "@/components/dashboard/LogbookRecentRow";
 import { SectionHeader } from "@/components/dashboard/SectionHeader";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ProfileModal } from "@/components/dashboard/ProfileModal";
+import { RecentAchievementsSection } from "@/components/dashboard/RecentAchievementsSection";
 
 export default function DashboardScreen() {
   const theme = useTheme();
@@ -64,7 +65,7 @@ export default function DashboardScreen() {
 
   if (error && !data) {
     return (
-      <SafeAreaView style={s.safeArea}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={s.safeArea}>
         <View style={s.errorContainer}>
           <Ionicons
             name="warning-outline"
@@ -82,7 +83,7 @@ export default function DashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={s.safeArea}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={s.safeArea}>
       <ScrollView
         contentContainerStyle={s.scrollContent}
         refreshControl={
@@ -263,6 +264,10 @@ export default function DashboardScreen() {
             Sin entradas. Usa la cámara para registrar formas de vida.
           </Text>
         )}
+
+        <RecentAchievementsSection
+          achievements={data?.recent_achievements ?? []}
+        />
       </ScrollView>
 
       <ProfileModal
