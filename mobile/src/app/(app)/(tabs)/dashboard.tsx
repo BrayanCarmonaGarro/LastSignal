@@ -11,8 +11,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/constants/theme";
 import { useDashboard } from "@/hooks/dashboard/useDashboard";
-import { useSwipeTabsGesture } from "@/components/ui/SwipeTabsGesture";
-import { TAB_ORDER } from "@/hooks/useSwipeTabsGesture.utils";
+//import { useSwipeTabsGesture } from "@/components/ui/SwipeTabsGesture";
+//import { TAB_ORDER } from "@/hooks/useSwipeTabsGesture.utils";
 import { makeStyles } from "@/styles/dashboardStyles";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { CriticalResourceBar } from "@/components/dashboard/CriticalResourceBar";
@@ -27,7 +27,7 @@ export default function DashboardScreen() {
   const { colors, iconSizes } = theme;
   const s = makeStyles(theme);
 
-  const { registerRefreshHandler } = useSwipeTabsGesture();
+  //const { registerRefreshHandler } = useSwipeTabsGesture();
 
   const {
     router,
@@ -55,8 +55,8 @@ export default function DashboardScreen() {
   } = useDashboard();
 
   useEffect(() => {
-    registerRefreshHandler(TAB_ORDER.indexOf("dashboard"), refresh);
-  }, [refresh, registerRefreshHandler]);
+    //registerRefreshHandler(TAB_ORDER.indexOf("dashboard"), refresh);
+  }, [refresh, ]);//registerRefreshHandler]);
 
   if (isLoading && !data) {
     return <DashboardSkeleton />;

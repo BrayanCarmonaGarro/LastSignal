@@ -3,13 +3,12 @@ import React from 'react';
 import { BaseOverlayMarker } from './BaseOverlayMarker';
 import type { SupplyDrop } from '@/store/tripStore';
 
-// SupplyDropMarker.tsx — agrega prop para controlar el callout
 interface Props {
   supply: SupplyDrop;
   screenX: number;
   screenY: number;
   onPress?: (supply: SupplyDrop) => void;
-  showCallout?: boolean;  // ← nuevo, default true
+  showCallout?: boolean;
 }
 
 export function SupplyDropMarker({ supply, screenX, screenY, onPress, showCallout = true }: Props) {
