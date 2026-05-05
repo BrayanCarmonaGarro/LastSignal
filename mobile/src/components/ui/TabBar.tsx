@@ -60,7 +60,7 @@ export default function TabBar({
       {/* Botón central flotante */}
       <View style={styles.centerWrapper}>
         <TouchableOpacity
-          onPress={() => router.push("/(app)/(tabs)/logbook/newEntry")}
+          onPress={() => router.push("/(app)/capture")}
           activeOpacity={0.85}
           style={[
             styles.captureButton,
