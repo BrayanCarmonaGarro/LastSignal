@@ -8,7 +8,7 @@ import {
   Alert,
   StatusBar,
 } from "react-native";
-import MapView, { Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, { Polyline } from "react-native-maps";
 import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -28,29 +28,38 @@ import { TripActionSheet, type SheetData } from "@/components/trips/TripActionSh
 import { useTripStore } from "@/store/tripStore";
 import type { SupplyDrop, TripDangerZone } from "@/store/tripStore";
 
+// ─── CONSTANTES ───────────────────────────────────────
+const COLLECT_RADIUS_METERS = 300;
+const COLLECT_RANGE_CIRCLE_SIZE = 160; // diámetro visual en pantalla (px)
+
 const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0d0d1a" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#8888aa" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#0a0a14" }] },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#1a1a2e" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#00d4ff22" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#050510" }],
-  },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
+  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#00d4ff22" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#050510" }] },
   { featureType: "poi", stylers: [{ visibility: "off" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
 ];
 
+// ─── HELPER HAVERSINE ─────────────────────────────────
+function getDistanceMeters(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number }
+) {
+  const R = 6371000;
+  const φ1 = (a.latitude * Math.PI) / 180;
+  const φ2 = (b.latitude * Math.PI) / 180;
+  const Δφ = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const Δλ = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const x =
+    Math.sin(Δφ / 2) ** 2 +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+// ─── COMPONENTE ───────────────────────────────────────
 export default function ActiveTripScreen() {
   const insets = useSafeAreaInsets();
 
@@ -63,37 +72,55 @@ export default function ActiveTripScreen() {
   const baseCoordinate = routePoints[0] ?? null;
 
   const [sheetData, setSheetData] = React.useState<SheetData | null>(null);
+  const [userLocation, setUserLocation] = React.useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  // Solo drops disponibles + recolectados en este viaje
+  const currentTripDrops = useMemo(
+    () =>
+      supplyDrops.filter(
+        (d) => d.status === "AVAILABLE" || d.trip_id === activeTrip?.id
+      ),
+    [supplyDrops, activeTrip?.id]
+  );
 
   const allMarkers = useMemo<OverlayMarker[]>(() => {
     const markers: OverlayMarker[] = [];
+
+    // Posición del usuario para el círculo de rango
+    if (userLocation) {
+      markers.push({ id: "__user__", coordinate: userLocation });
+    }
 
     if (baseCoordinate) {
       markers.push({ id: "__base__", coordinate: baseCoordinate });
     }
 
-    supplyDrops.forEach((d) =>
+    currentTripDrops.forEach((d) =>
       markers.push({
         id: `supply_${d.id}`,
         coordinate: { latitude: d.latitude, longitude: d.longitude },
-      }),
+      })
     );
 
     waypoints.forEach((wp) =>
       markers.push({
         id: `wp_${wp.id}`,
         coordinate: { latitude: wp.latitude, longitude: wp.longitude },
-      }),
+      })
     );
 
     dangerZones.forEach((dz) =>
       markers.push({
         id: `dz_${dz.id}`,
         coordinate: { latitude: dz.latitude, longitude: dz.longitude },
-      }),
+      })
     );
 
     return markers;
-  }, [baseCoordinate, supplyDrops, waypoints, dangerZones]);
+  }, [userLocation, baseCoordinate, currentTripDrops, waypoints, dangerZones]);
 
   const { mapRef, positions, recalculate } = useMarkerOverlay(allMarkers);
 
@@ -112,31 +139,31 @@ export default function ActiveTripScreen() {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
           };
+          setUserLocation(coords); // ← mantener ubicación en estado
           logPosition(coords);
           mapRef.current?.animateCamera({ center: coords }, { duration: 800 });
-        },
+        }
       );
     })();
 
-    return () => { sub?.remove(); };
+    return () => {
+      sub?.remove();
+    };
   }, [logPosition]);
 
-  // ─── ALERTAS DE OXÍGENO (estas sí quedan como Alert nativo
-  //     porque son emergencias que deben interrumpir cualquier flujo) ──
+  // ─── ALERTAS DE OXÍGENO ──────────────────────────────
   useEffect(() => {
     if (oxygenStatus === "critical") {
       Alert.alert(
         "⚠️ OXÍGENO CRÍTICO",
         `Solo quedan ${minutesRemaining} minutos. Regresa a la nave inmediatamente.`,
-        [{ text: "Entendido" }],
+        [{ text: "Entendido" }]
       );
     }
     if (oxygenStatus === "empty") {
-      Alert.alert(
-        "🚨 OXÍGENO AGOTADO",
-        "El viaje se ha terminado por seguridad.",
-        [{ text: "OK", onPress: end }],
-      );
+      Alert.alert("🚨 OXÍGENO AGOTADO", "El viaje se ha terminado por seguridad.", [
+        { text: "OK", onPress: end },
+      ]);
     }
   }, [oxygenStatus]);
 
@@ -155,31 +182,55 @@ export default function ActiveTripScreen() {
   const handleDropPress = useCallback(
     (drop: SupplyDrop) => {
       if (drop.collected_at) return;
+
+      // Verificar rango de recolección
+      if (userLocation) {
+        const dist = getDistanceMeters(userLocation, {
+          latitude: drop.latitude,
+          longitude: drop.longitude,
+        });
+
+        if (dist > COLLECT_RADIUS_METERS) {
+          setSheetData({
+            variant: "confirm",
+            title: "📍 Acércate más",
+            message: `Este suministro está a ${Math.round(dist)} m.\nNecesitas estar a menos de ${COLLECT_RADIUS_METERS} m para recolectarlo.`,
+            confirmLabel: "Entendido",
+            confirmColor: "#00d4ff",
+            onConfirm: () => {},
+          });
+          return;
+        }
+      }
+
       setSheetData({
         variant: "supply",
         drop,
         onCollect: (d) => collectDrop(d.id),
       });
     },
-    [collectDrop],
+    [collectDrop, userLocation]
   );
 
   const handleWaypointPress = useCallback(
     (latitude: number, longitude: number) => {
       mapRef.current?.animateCamera(
         { center: { latitude, longitude }, zoom: 16 },
-        { duration: 600 },
+        { duration: 600 }
       );
     },
-    [],
+    []
   );
 
   const handleDangerZonePress = useCallback((zone: TripDangerZone) => {
     setSheetData({ variant: "danger", zone });
   }, []);
 
-  const collectedCount = supplyDrops.filter((d) => d.status === "COLLECTED").length;
-  const totalSupplies = supplyDrops.length;
+  const collectedCount = currentTripDrops.filter((d) => d.status === "COLLECTED").length;
+  const totalSupplies = currentTripDrops.length;
+
+  // ─── RENDER ───────────────────────────────────────────
+  const userPos = userLocation ? positions["__user__"] : null;
 
   return (
     <View style={styles.container}>
@@ -189,7 +240,6 @@ export default function ActiveTripScreen() {
       <MapView
         ref={mapRef}
         style={StyleSheet.absoluteFillObject}
-        //provider={PROVIDER_GOOGLE}
         customMapStyle={DARK_MAP_STYLE}
         showsUserLocation
         showsMyLocationButton={false}
@@ -215,6 +265,22 @@ export default function ActiveTripScreen() {
       {/* Overlay de markers */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
 
+        {/* ── Círculo de rango de recolección ── */}
+        {userPos && (
+          <View
+            style={[
+              styles.collectRangeCircle,
+              {
+                width: COLLECT_RANGE_CIRCLE_SIZE,
+                height: COLLECT_RANGE_CIRCLE_SIZE,
+                borderRadius: COLLECT_RANGE_CIRCLE_SIZE / 2,
+                left: userPos.x - COLLECT_RANGE_CIRCLE_SIZE / 2,
+                top: userPos.y - COLLECT_RANGE_CIRCLE_SIZE / 2,
+              },
+            ]}
+          />
+        )}
+
         {/* Nave base */}
         {baseCoordinate && positions["__base__"] && (
           <BaseOverlayMarker
@@ -233,7 +299,7 @@ export default function ActiveTripScreen() {
         )}
 
         {/* Supply drops */}
-        {supplyDrops.map((drop) => {
+        {currentTripDrops.map((drop) => {
           const pos = positions[`supply_${drop.id}`];
           if (!pos) return null;
           return (
@@ -336,16 +402,29 @@ export default function ActiveTripScreen() {
       </View>
 
       {/* Action sheet */}
-      <TripActionSheet
-        data={sheetData}
-        onClose={() => setSheetData(null)}
-      />
+      <TripActionSheet data={sheetData} onClose={() => setSheetData(null)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#050510" },
+
+  // ── Círculo de rango ──────────────────────────────────
+  collectRangeCircle: {
+    position: "absolute",
+    borderWidth: 1.5,
+    borderColor: "#00d4ffaa",
+    backgroundColor: "#00d4ff0a",
+    // Glow en iOS
+    shadowColor: "#00d4ff",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    // Glow en Android
+    elevation: 0,
+  },
+
   hudTop: {
     position: "absolute",
     top: 0,
