@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { useResourceStore } from '@/store/resourceStore';
 import { usersApi } from '@/services/api/users.api';
 import { USERNAME_PATTERN, USERNAME_MIN_LENGTH } from '@/constants/validation';
 import { CATEGORY_ORDER, ResourceCategory } from '@/types/resource.types';
@@ -11,9 +12,14 @@ const STALE_THRESHOLD_MS = 60_000;
 export function useDashboard() {
   const router = useRouter();
 
-  const { data, isLoading, isRefreshing, error, fetch, refresh, lastFetchedAt, clear: clearDashboard } =
+  const { data, isLoading, isRefreshing, error, fetch, refresh: refreshDashboard, lastFetchedAt, clear: clearDashboard } =
     useDashboardStore();
+  const { fetchResources } = useResourceStore();
   const { clearSession } = useAuthStore();
+
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshDashboard(), fetchResources()]);
+  }, [refreshDashboard, fetchResources]);
 
   const [profileVisible, setProfileVisible] = useState(false);
   const [profileView, setProfileView]       = useState<'menu' | 'edit'>('menu');
