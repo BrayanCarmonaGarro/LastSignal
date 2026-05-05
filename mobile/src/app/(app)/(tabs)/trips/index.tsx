@@ -159,7 +159,7 @@ export default function TripsIndexScreen() {
   }, [refresh, ]); //registerRefreshHandler]);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
       {/* HEADER */}
