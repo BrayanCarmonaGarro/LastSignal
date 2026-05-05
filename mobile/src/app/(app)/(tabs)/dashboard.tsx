@@ -64,7 +64,7 @@ export default function DashboardScreen() {
 
   if (error && !data) {
     return (
-      <SafeAreaView style={s.safeArea}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={s.safeArea}>
         <View style={s.errorContainer}>
           <Ionicons
             name="warning-outline"
@@ -82,7 +82,7 @@ export default function DashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={s.safeArea}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={s.safeArea}>
       <ScrollView
         contentContainerStyle={s.scrollContent}
         refreshControl={

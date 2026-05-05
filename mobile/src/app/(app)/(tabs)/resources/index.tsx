@@ -80,7 +80,7 @@ export default function ResourcesScreen() {
 
   if (loading && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -93,7 +93,7 @@ export default function ResourcesScreen() {
 
   if (error && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -107,7 +107,7 @@ export default function ResourcesScreen() {
 
   if (!loading && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -119,7 +119,7 @@ export default function ResourcesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
       <FlatList
         data={uiResources}
