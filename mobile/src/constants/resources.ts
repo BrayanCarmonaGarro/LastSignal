@@ -26,15 +26,6 @@ export const RESOURCE_ICONS: Record<string, string> = {
   FUEL:        'flame-outline',
 };
 
-export const UNIT_LABELS: Record<Resource['unit'], string> = {
-  LITERS:     'L',
-  KILOGRAMS:  'kg',
-  UNITS:      'u',
-  PERCENTAGE: '%',
-  GRAMS:      'g',
-  CALORIES:   'kcal',
-};
-
 export function getResourceIcon(name: string, category: Resource['category']): string {
   return RESOURCE_ICONS[name] ?? RESOURCE_ICONS[category] ?? 'cube-outline';
 }

@@ -6,13 +6,15 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.security import get_current_user, resolve_db_user
 from app.models.logbook import LogbookEntry
-from app.models.inventory_resource import InventoryResource
+from app.models.base_storage import BaseStorage
+from app.models.ship_base import ShipBase
 from app.models.trip import Trip, TripStatus
 from app.models.user_achievement import UserAchievement
-from app.routers.inventory import serialize_inventory
+from app.routers.base_storage import serialize_base_storage
 from app.schemas.achievement import UserAchievementResponse
 from app.schemas.logbook import LogbookEntryResponse
-from app.schemas.inventory_resource import InventoryResourceResponse
+from app.schemas.base_storage import BaseStorageResponse
+from app.schemas.ship_base import ShipBaseResponse
 from app.schemas.user import (
     ActiveTripSummary,
     DashboardResponse,
@@ -30,34 +32,41 @@ async def get_dashboard(
 ):
     user = await resolve_db_user(current_user, db)
 
+    ship_base = (
+        db.query(ShipBase).filter(ShipBase.id == user.ship_base_id).first()
+        if user.ship_base_id
+        else None
+    )
+
     total_logbook = db.query(LogbookEntry).filter(LogbookEntry.user_id == user.id).count()
 
-    inventory = (
-        db.query(InventoryResource)
-        .options(joinedload(InventoryResource.base_resource))
-        .filter(InventoryResource.user_id == user.id)
-        .all()
-    )
-    total_resources = len(inventory)
+    base_storage_items = []
+    if user.ship_base_id:
+        base_storage_items = (
+            db.query(BaseStorage)
+            .options(joinedload(BaseStorage.base_resource))
+            .filter(BaseStorage.ship_base_id == user.ship_base_id)
+            .all()
+        )
+    total_resources = len(base_storage_items)
     critical_below = sum(
-        1 for r in inventory if r.current_amount <= r.base_resource.min_threshold
+        1 for s in base_storage_items if s.current_amount <= s.base_resource.min_threshold
     )
 
     category_map: dict = defaultdict(list)
-    for r in inventory:
-        category = r.base_resource.category
-        category_key = category.value if hasattr(category, "value") else str(category)
-        category_map[category_key].append(r)
+    for s in base_storage_items:
+        category_key = s.base_resource.category.value if hasattr(s.base_resource.category, "value") else str(s.base_resource.category)
+        category_map[category_key].append(s)
 
     resource_groups = [
         ResourceCategoryGroup(
             category=cat,
-            resources=[InventoryResourceResponse(**serialize_inventory(r)) for r in rs],
+            resources=[BaseStorageResponse(**serialize_base_storage(s)) for s in ss],
             critical_count=sum(
-                1 for r in rs if r.current_amount <= r.base_resource.min_threshold
+                1 for s in ss if s.current_amount <= s.base_resource.min_threshold
             ),
         )
-        for cat, rs in category_map.items()
+        for cat, ss in category_map.items()
     ]
 
     active_trip = (
@@ -94,6 +103,7 @@ async def get_dashboard(
 
     return DashboardResponse(
         user=UserResponse.model_validate(user),
+        ship_base=ShipBaseResponse.model_validate(ship_base) if ship_base else None,
         total_logbook_entries=total_logbook,
         total_resources=total_resources,
         critical_resources_below_threshold=critical_below,

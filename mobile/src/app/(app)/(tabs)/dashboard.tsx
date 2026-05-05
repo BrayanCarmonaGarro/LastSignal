@@ -6,11 +6,14 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from "react-native";
+import { useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/constants/theme";
 import { useDashboard } from "@/hooks/dashboard/useDashboard";
-import { makeStyles } from "./dashboard.styles";
+import { useSwipeTabsGesture } from "@/components/ui/SwipeTabsGesture";
+import { TAB_ORDER } from "@/hooks/useSwipeTabsGesture.utils";
+import { makeStyles } from "@/styles/dashboardStyles";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { CriticalResourceBar } from "@/components/dashboard/CriticalResourceBar";
 import { ActiveTripBanner } from "@/components/dashboard/ActiveTripBanner";
@@ -23,6 +26,8 @@ export default function DashboardScreen() {
   const theme = useTheme();
   const { colors, iconSizes } = theme;
   const s = makeStyles(theme);
+
+  const { registerRefreshHandler } = useSwipeTabsGesture();
 
   const {
     router,
@@ -48,6 +53,10 @@ export default function DashboardScreen() {
     setProfileView,
     setEditUsername,
   } = useDashboard();
+
+  useEffect(() => {
+    registerRefreshHandler(TAB_ORDER.indexOf("dashboard"), refresh);
+  }, [refresh, registerRefreshHandler]);
 
   if (isLoading && !data) {
     return <DashboardSkeleton />;
@@ -108,13 +117,32 @@ export default function DashboardScreen() {
               <Text numberOfLines={1} style={s.username}>
                 {data?.user.username ?? data?.user.display_name ?? "Astronauta"}
               </Text>
-              <Text style={s.subLabel}>Base Camp</Text>
             </View>
           </TouchableOpacity>
           <View style={s.levelChip}>
             <Text style={s.levelLabel}>Nivel</Text>
             <Text style={s.levelValue}>{data?.user.level ?? "-"}</Text>
           </View>
+        </View>
+
+        <View style={s.baseCard}>
+          <Text style={s.baseCardTag}>BASE</Text>
+          <Text style={s.baseCardName} numberOfLines={2}>
+            {data?.ship_base?.name ?? "Base Camp"}
+          </Text>
+          {data?.ship_base ? (
+            <View style={s.baseCardCoordRow}>
+              <Ionicons
+                name="location-outline"
+                size={11}
+                color={colors.textMuted}
+              />
+              <Text style={s.baseCardCoords}>
+                {data.ship_base.latitude.toFixed(4)},{"  "}
+                {data.ship_base.longitude.toFixed(4)}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {data?.active_trip ? (

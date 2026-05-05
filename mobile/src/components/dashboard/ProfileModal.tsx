@@ -79,9 +79,7 @@ export function ProfileModal({
                   <Text style={s.displayName}>
                     {user?.username ?? user?.display_name ?? "—"}
                   </Text>
-                  <Text style={s.levelInfo}>
-                    {"Nivel " + (user?.level ?? "-") + "  ·  Base Camp"}
-                  </Text>
+                 
                 </View>
 
                 <View style={s.divider}>

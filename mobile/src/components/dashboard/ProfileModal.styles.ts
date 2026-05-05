@@ -26,9 +26,11 @@ export const createStyles = (
       overflow:        'hidden',
     },
     avatarSection: {
-      alignItems: 'center',
-      padding:    spacing.xl,
-      gap:        spacing.sm,
+      flexDirection:  'row',
+      alignItems:     'center',
+      justifyContent: 'center',
+      padding:        spacing.xl,
+      gap:            spacing.lg,
     },
     avatarLarge: {
       width:        64,
@@ -53,7 +55,7 @@ export const createStyles = (
     displayName: {
       fontFamily:    fonts.display,
       fontSize:      fontSizes.h2,
-      color:         colors.textPrimary,
+      color:         colors.primary,
       textTransform: 'uppercase',
       letterSpacing: 2,
     },
