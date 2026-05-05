@@ -2,7 +2,7 @@
 // Cliente HTTP centralizado con refresh automático del access token
 import { useAuthStore } from '@/store/authStore';
 
-const BASE_URL   = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const BASE_URL   = process.env.EXPO_PUBLIC_API_URL ?? 'https://gigabyte-proofing-factoid.ngrok-free.dev/api';
 const API_PREFIX = '/api/v1';
 
 // Mutex de refresh: evita que múltiples 401 simultáneos disparen varios refreshes
