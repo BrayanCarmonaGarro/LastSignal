@@ -5,9 +5,9 @@ import type { BaseResource } from '@/types/resource.types';
 import { resourcesApi } from '@/services/api/resources.api';
 
 const TARGET_AVAILABLE_DROPS = 3;
-const NEARBY_RADIUS_DEG = 0.02;
-const SCATTER_RANGE = 0.015;
-const MIN_DROP_SEPARATION_DEG = 0.003;
+const NEARBY_RADIUS_DEG = 0.004;
+const SCATTER_RANGE = 0.002;
+const MIN_DROP_SEPARATION_DEG = 0.0005;
 const MAX_COORD_ATTEMPTS = 20;
 
 function randomScatter(): number {
