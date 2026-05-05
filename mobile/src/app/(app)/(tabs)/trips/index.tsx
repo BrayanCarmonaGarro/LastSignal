@@ -204,7 +204,7 @@ export default function TripsIndexScreen() {
             <MapView
               ref={mapRef}
               style={StyleSheet.absoluteFillObject}
-              provider={PROVIDER_GOOGLE}
+              //provider={PROVIDER_GOOGLE}
               customMapStyle={DARK_MAP_STYLE}
               showsUserLocation
               initialRegion={{
