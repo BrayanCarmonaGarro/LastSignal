@@ -4,15 +4,11 @@ import type { SupplyDrop } from '@/types/supply_drop.types';
 import type { BaseResource } from '@/types/resource.types';
 import { resourcesApi } from '@/services/api/resources.api';
 
-// ─── Constantes ──────────────────────────────────────────────────────────────
-
 const TARGET_AVAILABLE_DROPS = 3;
-const NEARBY_RADIUS_DEG = 0.02;
-const SCATTER_RANGE = 0.015;
-const MIN_DROP_SEPARATION_DEG = 0.003;
+const NEARBY_RADIUS_DEG = 0.004;
+const SCATTER_RANGE = 0.002;
+const MIN_DROP_SEPARATION_DEG = 0.0005;
 const MAX_COORD_ATTEMPTS = 20;
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function randomScatter(): number {
   return (Math.random() * 2 - 1) * SCATTER_RANGE;
@@ -38,29 +34,17 @@ function generateCoords(
       latitude: userLat + randomScatter(),
       longitude: userLon + randomScatter(),
     };
-
     const tooClose = occupied.some(
       (o) => distanceDeg(candidate, o) < MIN_DROP_SEPARATION_DEG
     );
-
     if (!tooClose) {
-      console.log(
-        `[supplyDropService] Coordenadas generadas en intento ${attempt + 1}:`,
-        candidate
-      );
+      console.log(`[supplyDropService] Coordenadas generadas en intento ${attempt + 1}:`, candidate);
       return candidate;
     }
   }
-
-  console.warn(
-    '[supplyDropService] No se encontraron coordenadas libres después de',
-    MAX_COORD_ATTEMPTS,
-    'intentos'
-  );
+  console.warn('[supplyDropService] No se encontraron coordenadas libres después de', MAX_COORD_ATTEMPTS, 'intentos');
   return null;
 }
-
-// ─── Selección de recursos ────────────────────────────────────────────────────
 
 function generateAmount(unit: BaseResource['unit']): number {
   switch (unit) {
@@ -79,27 +63,23 @@ function selectResources(
   alreadyUsedIds: Set<string>
 ): BaseResource[] {
   const selected: BaseResource[] = [];
-
   for (const resource of resources) {
     if (selected.length >= 3) break;
     if (alreadyUsedIds.has(resource.id)) continue;
     if (selected.some((s) => s.category === resource.category)) continue;
     selected.push(resource);
   }
-
   return selected;
 }
 
-// ─── Algoritmo principal ──────────────────────────────────────────────────────
-
-export async function ensureSupplyDrops(userLat: number, userLon: number): Promise<void> {
+export async function ensureSupplyDrops(userLat: number, userLon: number): Promise<SupplyDrop[]> {
   let allDrops: SupplyDrop[];
   try {
     allDrops = await tripService.getAllDrops();
     console.log(`[supplyDropService] Total drops en backend: ${allDrops.length}`);
   } catch (err) {
     console.error('[supplyDropService] ❌ Error al obtener drops:', err);
-    return;
+    return [];
   }
 
   const nearbyAvailable = allDrops.filter(
@@ -112,7 +92,7 @@ export async function ensureSupplyDrops(userLat: number, userLon: number): Promi
   const needed = TARGET_AVAILABLE_DROPS - nearbyAvailable.length;
   if (needed <= 0) {
     console.log('[supplyDropService] ✅ Suficientes drops cercanos, no se generan nuevos');
-    return;
+    return allDrops;
   }
   console.log(`[supplyDropService] Necesita generar: ${needed} drops`);
 
@@ -122,18 +102,15 @@ export async function ensureSupplyDrops(userLat: number, userLon: number): Promi
     console.log(`[supplyDropService] Recursos base disponibles: ${resources.length}`);
   } catch (err) {
     console.error('[supplyDropService] ❌ Error al obtener recursos base:', err);
-    return;
+    return allDrops;
   }
 
   if (resources.length === 0) {
     console.warn('[supplyDropService] ⚠️ No hay recursos base definidos, abortando');
-    return;
+    return allDrops;
   }
 
-  const occupied = allDrops.map((d) => ({
-    latitude: d.latitude,
-    longitude: d.longitude,
-  }));
+  const occupied = allDrops.map((d) => ({ latitude: d.latitude, longitude: d.longitude }));
 
   const usedResourceIds = new Set<string>(
     nearbyAvailable.flatMap((d) => d.items?.map((i) => i.base_resource_id) ?? [])
@@ -154,21 +131,14 @@ export async function ensureSupplyDrops(userLat: number, userLon: number): Promi
       continue;
     }
 
-    const items = selected.map((r) => ({
-      base_resource_id: r.id,
-      amount: generateAmount(r.unit),
-    }));
+    const items = selected.map((r) => ({ base_resource_id: r.id, amount: generateAmount(r.unit) }));
 
-    console.log(
-      `[supplyDropService] Drop ${i + 1} — recursos:`,
-      selected.map((r) => `${r.name} (${r.category})`)
-    );
+    console.log(`[supplyDropService] Drop ${i + 1} — recursos:`, selected.map((r) => `${r.name} (${r.category})`));
     console.log(`[supplyDropService] Drop ${i + 1} — items:`, items);
 
     try {
       await tripService.createDrop(coords.latitude, coords.longitude, items);
       console.log(`[supplyDropService] ✅ Drop ${i + 1} creado correctamente`);
-
       occupied.push(coords);
       selected.forEach((r) => usedResourceIds.add(r.id));
     } catch (err) {
@@ -176,5 +146,13 @@ export async function ensureSupplyDrops(userLat: number, userLon: number): Promi
     }
   }
 
-  console.log('[supplyDropService] ── Verificación finalizada ──');
+  console.log('[supplyDropService] ── Verificación finalizada, fetching estado final ──');
+  try {
+    const finalDrops = await tripService.getAllDrops();
+    console.log(`[supplyDropService] Drops finales en store: ${finalDrops.length}`);
+    return finalDrops;
+  } catch (err) {
+    console.error('[supplyDropService] ❌ Error al obtener drops finales:', err);
+    return allDrops;
+  }
 }

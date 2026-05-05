@@ -27,6 +27,7 @@ export function useTrip(): UseTripReturn {
     activeTrip,
     oxygen,
     setActiveTrip,
+    setSupplyDrops,
     markDropCollected,
     updateDrop,
     addRoutePoint,
@@ -42,7 +43,6 @@ export function useTrip(): UseTripReturn {
   const canStart = !activeTrip && oxygen.level > 20;
   const canEnd = !!activeTrip && activeTrip.status === "ACTIVE";
 
-  // ── Iniciar viaje ──────────────────────────────────────────────────────────
   const start = useCallback(async () => {
     console.log("ACTIVE TRIP:", activeTrip);
     if (isStarting) return;
@@ -57,12 +57,15 @@ export function useTrip(): UseTripReturn {
         setOxygenConsuming(true);
 
         const locationResult = await Location.getCurrentPositionAsync({});
-        await ensureSupplyDrops(
+
+        const drops = await ensureSupplyDrops(
           locationResult.coords.latitude,
           locationResult.coords.longitude,
-        ).catch((err) =>
-          console.error("[useTrip] Error al generar drops iniciales:", err),
-        );
+        ).catch((err) => {
+          console.error("[useTrip] Error al generar drops iniciales:", err);
+          return [];
+        });
+        setSupplyDrops(drops);
 
         const zones = await tripService.getDangerZones(existingTrip.id).catch((err) => {
           console.error("[useTrip] Error al cargar danger zones:", err);
@@ -81,12 +84,15 @@ export function useTrip(): UseTripReturn {
       setOxygenConsuming(true);
 
       const locationResult = await Location.getCurrentPositionAsync({});
-      await ensureSupplyDrops(
+
+      const drops = await ensureSupplyDrops(
         locationResult.coords.latitude,
         locationResult.coords.longitude,
-      ).catch((err) =>
-        console.error("[useTrip] Error al generar drops iniciales:", err),
-      );
+      ).catch((err) => {
+        console.error("[useTrip] Error al generar drops iniciales:", err);
+        return [];
+      });
+      setSupplyDrops(drops);
 
       const zones = await generateDangerZones(
         trip.id,
@@ -110,12 +116,12 @@ export function useTrip(): UseTripReturn {
     canStart,
     oxygen.level,
     setActiveTrip,
+    setSupplyDrops,
     setOxygenConsuming,
     setDangerZones,
     router,
   ]);
 
-  // ── Finalizar viaje (llega a la nave) ─────────────────────────────────────
   const end = useCallback(async () => {
     if (!canEnd || isEnding || !activeTrip) return;
     setIsEnding(true);
@@ -123,10 +129,8 @@ export function useTrip(): UseTripReturn {
       const oxygenConsumed = parseFloat(
         (activeTrip.initial_oxygen - oxygen.level).toFixed(2),
       );
-
       await tripService.updateOxygenConsumed(activeTrip.id, oxygenConsumed);
       const completed = await tripService.completeTrip(activeTrip.id);
-
       setActiveTrip(completed);
       setOxygenConsuming(false);
       router.push("/(app)/(tabs)/trips/summary");
@@ -147,7 +151,6 @@ export function useTrip(): UseTripReturn {
     router,
   ]);
 
-  // ── Confirmar regreso y limpiar estado ────────────────────────────────────
   const completeReturn = useCallback(async () => {
     setActiveTrip(null);
     clearRoute();
@@ -155,13 +158,10 @@ export function useTrip(): UseTripReturn {
     router.replace("/(app)/(tabs)/trips");
   }, [setActiveTrip, clearRoute, resetOxygen, router]);
 
-  // ── Recolectar suministro ─────────────────────────────────────────────────
   const collectDrop = useCallback(
     async (dropId: string) => {
       if (!activeTrip) return;
-
       markDropCollected(dropId, activeTrip.id);
-
       try {
         const updatedDrop = await tripService.collectDrop(dropId, activeTrip.id);
         updateDrop(updatedDrop);

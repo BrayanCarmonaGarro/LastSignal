@@ -40,7 +40,6 @@ type TabView = 'map' | 'list';
 
 export default function TripsIndexScreen() {
   const insets = useSafeAreaInsets();
-  //const { registerRefreshHandler } = useSwipeTabsGesture();
   const mapRef = useRef<MapView>(null);
 
   const [userLocation, setUserLocation] = useState<{
@@ -61,23 +60,31 @@ export default function TripsIndexScreen() {
     supplyDrops,
     availableDrops,
     collectedDrops,
+    nearbyDrops,
     isLoading,
+    isOffline,
+    isStale,
     error,
     refresh,
-  } = useSupplies();
+  } = useSupplies({ userLocation });
 
   // ─── MARKERS PARA OVERLAY ─────────────────────────
   const allMarkers = useMemo<OverlayMarker[]>(() => {
-    return supplyDrops.map((d) => ({
+    return availableDrops.map((d) => ({
       id: `supply_${d.id}`,
       coordinate: {
         latitude: d.latitude,
         longitude: d.longitude,
       },
     }));
-  }, [supplyDrops]);
+  }, [availableDrops]);
 
-  const { mapRef: overlayMapRef, positions, recalculate } = useMarkerOverlay(allMarkers);
+  const { mapRef: overlayMapRef, positions, recalculate, invalidate } = useMarkerOverlay(allMarkers);
+
+  const handleTabChange = useCallback((tab: TabView) => {
+    if (tab === 'list') invalidate();
+    setActiveTab(tab);
+  }, [invalidate]);
 
   // usamos el mismo ref
   useEffect(() => {
@@ -117,7 +124,7 @@ export default function TripsIndexScreen() {
   // ─── NAVEGAR ─────────────────────────
   const handleDropPress = useCallback((drop: SupplyDrop) => {
     setSelectedDrop(drop);
-    setActiveTab('map');
+    handleTabChange('map');
 
     setTimeout(() => {
       mapRef.current?.animateCamera(
@@ -131,7 +138,7 @@ export default function TripsIndexScreen() {
         { duration: 700 }
       );
     }, 50);
-  }, []);
+  }, [handleTabChange]);
 
   // ─── RECOLECTAR ─────────────────────────
   const handleCollect = useCallback(
@@ -154,10 +161,6 @@ export default function TripsIndexScreen() {
 
   const tripStatus = activeTrip?.status ?? null;
 
-  useEffect(() => {
-    //registerRefreshHandler(TAB_ORDER.indexOf('trips'), refresh);
-  }, [refresh, ]); //registerRefreshHandler]);
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -167,6 +170,18 @@ export default function TripsIndexScreen() {
         <View>
           <Text style={styles.headerEyebrow}>MISIÓN EN ESPERA</Text>
           <Text style={styles.headerTitle}>Suministros NASA</Text>
+        </View>
+        <View style={styles.headerRight}>
+          {isOffline && (
+            <View style={styles.offlineBadge}>
+              <Text style={styles.offlineText}>OFFLINE</Text>
+            </View>
+          )}
+          {isStale && !isOffline && (
+            <View style={styles.staleBadge}>
+              <Text style={styles.staleText}>CACHÉ</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -184,16 +199,16 @@ export default function TripsIndexScreen() {
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'map' && styles.tabActive]}
-          onPress={() => setActiveTab('map')}
+          onPress={() => handleTabChange('map')}
         >
           <Text style={styles.tabText}>◎ Mapa</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tab, activeTab === 'list' && styles.tabActive]}
-          onPress={() => setActiveTab('list')}
+          onPress={() => handleTabChange('list')}
         >
-          <Text style={styles.tabText}>⬡ Lista ({supplyDrops.length})</Text>
+          <Text style={styles.tabText}>⬡ Lista ({nearbyDrops.length})</Text>
         </TouchableOpacity>
       </View>
 
@@ -204,7 +219,6 @@ export default function TripsIndexScreen() {
             <MapView
               ref={mapRef}
               style={StyleSheet.absoluteFillObject}
-              provider={PROVIDER_GOOGLE}
               customMapStyle={DARK_MAP_STYLE}
               showsUserLocation
               initialRegion={{
@@ -219,7 +233,7 @@ export default function TripsIndexScreen() {
 
             {/* OVERLAY */}
             <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-              {supplyDrops.map((drop) => {
+              {availableDrops.map((drop) => {
                 const pos = positions[`supply_${drop.id}`];
                 if (!pos) return null;
 
@@ -237,7 +251,7 @@ export default function TripsIndexScreen() {
           </>
         ) : (
           <FlatList
-            data={[...availableDrops, ...collectedDrops]}
+            data={[...nearbyDrops]}
             keyExtractor={(d) => d.id}
             contentContainerStyle={styles.listContent}
             refreshControl={
@@ -275,6 +289,7 @@ export default function TripsIndexScreen() {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

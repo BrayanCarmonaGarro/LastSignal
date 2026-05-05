@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useAuthStore } from '@/store/authStore';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { useLogout } from '@/hooks/useLogout';
 import { useResourceStore } from '@/store/resourceStore';
 import { usersApi } from '@/services/api/users.api';
 import { USERNAME_PATTERN, USERNAME_MIN_LENGTH } from '@/constants/validation';
@@ -15,7 +15,7 @@ export function useDashboard() {
   const { data, isLoading, isRefreshing, error, fetch, refresh: refreshDashboard, lastFetchedAt, clear: clearDashboard } =
     useDashboardStore();
   const { fetchResources } = useResourceStore();
-  const { clearSession } = useAuthStore();
+  const { logout } = useLogout();
 
   const refresh = useCallback(async () => {
     await Promise.all([refreshDashboard(), fetchResources()]);
@@ -43,8 +43,8 @@ export function useDashboard() {
 
   const confirmLogout = async () => {
     setProfileVisible(false);
-    await clearSession();
     clearDashboard();
+    await logout();
   };
 
   const trimmedEdit = editUsername.trim();
