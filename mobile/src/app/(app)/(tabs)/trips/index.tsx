@@ -1,5 +1,5 @@
 // src/app/(app)/(tabs)/trips/index.tsx
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,11 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTrip } from '@/hooks/trip/useTrip';
 import { useOxygen } from '@/hooks/trip/useOxygen';
 import { useSupplies } from '@/hooks/trip/useSupplies';
-import { useSwipeTabsGesture } from '@/components/ui/SwipeTabsGesture';
-import { TAB_ORDER } from '@/hooks/useSwipeTabsGesture.utils';
+import { useMarkerOverlay, type OverlayMarker } from '@/hooks/trip/useMarkerOverlay';
+
 import { OxygenBar } from '@/components/trips/OxygenBar';
 import { SupplyCard } from '@/components/trips/SupplyCard';
 import { SupplyDropMarker } from '@/components/trips/markers/SupplyDropMarker';
+
 import { tripService } from '@/services/trip/tripService';
 import { useTripStore } from '@/store/tripStore';
 import type { SupplyDrop } from '@/store/tripStore';
@@ -53,38 +54,45 @@ export default function TripsIndexScreen() {
   const setActiveTrip = useTripStore((s) => s.setActiveTrip);
   const markDropCollected = useTripStore((s) => s.markDropCollected);
 
-  const {
-    activeTrip,
-    canStart,
-    start,
-    end,
-  } = useTrip();
-
-  const {
-    level,
-    oxygenStatus,
-    minutesRemaining,
-    isConsuming,
-  } = useOxygen();
+  const { activeTrip, canStart, start, end } = useTrip();
+  const { level, oxygenStatus, minutesRemaining, isConsuming } = useOxygen();
 
   const {
     supplyDrops,
     availableDrops,
     collectedDrops,
     isLoading,
-    isOffline,
-    isStale,
     error,
     refresh,
   } = useSupplies();
 
-  // ─── SINCRONIZAR VIAJE ACTIVO DESDE BACKEND ──────────────────────────────
+  // ─── MARKERS PARA OVERLAY ─────────────────────────
+  const allMarkers = useMemo<OverlayMarker[]>(() => {
+    return supplyDrops.map((d) => ({
+      id: `supply_${d.id}`,
+      coordinate: {
+        latitude: d.latitude,
+        longitude: d.longitude,
+      },
+    }));
+  }, [supplyDrops]);
+
+  const { mapRef: overlayMapRef, positions, recalculate } = useMarkerOverlay(allMarkers);
+
+  // usamos el mismo ref
+  useEffect(() => {
+    if (mapRef.current) {
+      overlayMapRef.current = mapRef.current;
+    }
+  }, []);
+
+  // ─── SINCRONIZAR VIAJE ─────────────────────────
   useEffect(() => {
     const loadActiveTrip = async () => {
       try {
         const trip = await tripService.getActiveTrip();
         setActiveTrip(trip);
-      } catch (err) {
+      } catch {
         setActiveTrip(null);
       }
     };
@@ -92,7 +100,7 @@ export default function TripsIndexScreen() {
     loadActiveTrip();
   }, [setActiveTrip]);
 
-  // ─── LOCATION ─────────────────────────────────────────────────────────────
+  // ─── LOCATION ─────────────────────────
   useEffect(() => {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -106,11 +114,11 @@ export default function TripsIndexScreen() {
     })();
   }, []);
 
-  // ─── NAVEGAR: cambia al tab de mapa y centra la cámara ───────────────────
+  // ─── NAVEGAR ─────────────────────────
   const handleDropPress = useCallback((drop: SupplyDrop) => {
     setSelectedDrop(drop);
     setActiveTab('map');
-    // pequeño delay para que el MapView ya esté montado al cambiar de tab
+
     setTimeout(() => {
       mapRef.current?.animateCamera(
         {
@@ -125,7 +133,7 @@ export default function TripsIndexScreen() {
     }, 50);
   }, []);
 
-  // ─── RECOLECTAR ───────────────────────────────────────────────────────────
+  // ─── RECOLECTAR ─────────────────────────
   const handleCollect = useCallback(
     async (supply: SupplyDrop) => {
       if (!activeTrip?.id) return;
@@ -134,21 +142,15 @@ export default function TripsIndexScreen() {
 
       try {
         await tripService.collectDrop(supply.id, activeTrip.id);
-      } catch (err) {
-        console.error('[collect] Error al recolectar suministro:', err);
+      } catch {
         refresh();
       }
     },
     [activeTrip, markDropCollected, refresh]
   );
 
-  const handleStartTrip = useCallback(() => {
-    start();
-  }, [start]);
-
-  const handleEndTrip = useCallback(() => {
-    end?.();
-  }, [end]);
+  const handleStartTrip = useCallback(() => start(), [start]);
+  const handleEndTrip = useCallback(() => end?.(), [end]);
 
   const tripStatus = activeTrip?.status ?? null;
 
@@ -184,86 +186,76 @@ export default function TripsIndexScreen() {
           style={[styles.tab, activeTab === 'map' && styles.tabActive]}
           onPress={() => setActiveTab('map')}
         >
-          <Text style={[styles.tabText, activeTab === 'map' && styles.tabTextActive]}>
-            ◎ Mapa
-          </Text>
+          <Text style={styles.tabText}>◎ Mapa</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.tab, activeTab === 'list' && styles.tabActive]}
           onPress={() => setActiveTab('list')}
         >
-          <Text style={[styles.tabText, activeTab === 'list' && styles.tabTextActive]}>
-            ⬡ Lista ({supplyDrops.length})
-          </Text>
+          <Text style={styles.tabText}>⬡ Lista ({supplyDrops.length})</Text>
         </TouchableOpacity>
       </View>
 
       {/* CONTENT */}
       <View style={styles.content}>
         {activeTab === 'map' ? (
-          <MapView
-            ref={mapRef}
-            style={StyleSheet.absoluteFillObject}
-            provider={PROVIDER_GOOGLE}
-            customMapStyle={DARK_MAP_STYLE}
-            showsUserLocation
-            initialRegion={{
-              latitude: userLocation?.latitude ?? 9.9281,
-              longitude: userLocation?.longitude ?? -84.0907,
-              latitudeDelta: 0.05,
-              longitudeDelta: 0.05,
-            }}
-          > {/*
-            {supplyDrops.map((drop) => (
-              <MapMarker key={drop.id} supply={drop} onPress={handleDropPress} />
-            ))}*/}
-          </MapView>
-        ) : (
           <>
-            {isLoading && (
-              <View style={styles.loadingOverlay}>
-                <ActivityIndicator color="#00d4ff" />
-                <Text style={styles.loadingText}>Obteniendo suministros…</Text>
-              </View>
-            )}
-
-            {error && (
-              <View style={styles.errorBanner}>
-                <Text style={styles.errorText}>⚠ {error}</Text>
-                <TouchableOpacity onPress={refresh}>
-                  <Text style={styles.errorRetry}>Reintentar</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <FlatList
-              data={[...availableDrops, ...collectedDrops]}
-              keyExtractor={(d) => d.id}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl
-                  refreshing={isLoading}
-                  onRefresh={refresh}
-                  tintColor="#00d4ff"
-                />
-              }
-              renderItem={({ item }) => (
-                <SupplyCard
-                  supply={item}
-                  onNavigate={handleDropPress}
-                  onCollect={handleCollect}  // ✅ conectado
-                />
-              )}
+            <MapView
+              ref={mapRef}
+              style={StyleSheet.absoluteFillObject}
+              provider={PROVIDER_GOOGLE}
+              customMapStyle={DARK_MAP_STYLE}
+              showsUserLocation
+              initialRegion={{
+                latitude: userLocation?.latitude ?? 9.9281,
+                longitude: userLocation?.longitude ?? -84.0907,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+              }}
+              onRegionChange={recalculate}
+              onLayout={recalculate}
             />
+
+            {/* OVERLAY */}
+            <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+              {supplyDrops.map((drop) => {
+                const pos = positions[`supply_${drop.id}`];
+                if (!pos) return null;
+
+                return (
+                  <SupplyDropMarker
+                    key={drop.id}
+                    screenX={pos.x}
+                    screenY={pos.y}
+                    supply={drop}
+                    onPress={handleDropPress}
+                  />
+                );
+              })}
+            </View>
           </>
+        ) : (
+          <FlatList
+            data={[...availableDrops, ...collectedDrops]}
+            keyExtractor={(d) => d.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={isLoading} onRefresh={refresh} />
+            }
+            renderItem={({ item }) => (
+              <SupplyCard
+                supply={item}
+                onNavigate={handleDropPress}
+                onCollect={handleCollect}
+              />
+            )}
+          />
         )}
       </View>
 
       {/* CTA */}
       <View style={[styles.ctaContainer, { paddingBottom: insets.bottom + 12 }]}>
-
-        {/* START */}
         {!tripStatus && (
           <TouchableOpacity
             style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
@@ -274,32 +266,15 @@ export default function TripsIndexScreen() {
           </TouchableOpacity>
         )}
 
-        {/* ACTIVE */}
         {tripStatus === 'ACTIVE' && (
-          <>
-            <View style={styles.activePill}>
-              <View style={styles.activeDot} />
-              <Text style={styles.activeText}>Exploración en curso…</Text>
-            </View>
-
-            <TouchableOpacity style={styles.endBtn} onPress={handleEndTrip}>
-              <Text style={styles.endBtnText}>■ FINALIZAR EXPLORACIÓN</Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {/* COMPLETED */}
-        {tripStatus === 'COMPLETED' && (
-          <View style={styles.activePill}>
-            <View style={[styles.activeDot, { backgroundColor: '#ffcc00' }]} />
-            <Text style={styles.activeText}>Regresando a la nave…</Text>
-          </View>
+          <TouchableOpacity style={styles.endBtn} onPress={handleEndTrip}>
+            <Text style={styles.endBtnText}>■ FINALIZAR EXPLORACIÓN</Text>
+          </TouchableOpacity>
         )}
       </View>
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -395,6 +370,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     position: 'relative',
+    overflow: 'hidden',
   },
   loadingOverlay: {
     padding: 20,

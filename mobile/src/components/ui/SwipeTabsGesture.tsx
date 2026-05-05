@@ -1,3 +1,4 @@
+/*
 import React, { createContext, useContext } from "react";
 import type { SwipeTabsState } from "@/hooks/useSwipeTabsGesture";
 import { useSwipeTabsGestureLogic } from "@/hooks/useSwipeTabsGesture";
@@ -23,3 +24,4 @@ export function useSwipeTabsGesture() {
   }
   return ctx;
 }
+*/
