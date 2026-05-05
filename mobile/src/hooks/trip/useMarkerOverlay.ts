@@ -15,6 +15,17 @@ export function useMarkerOverlay<T extends OverlayMarker>(markers: T[]) {
     const next: Record<string, { x: number; y: number }> = {};
     await Promise.all(
       markers.map(async (m) => {
+        const { latitude, longitude } = m.coordinate;
+
+        if (
+          latitude == null ||
+          longitude == null ||
+          !isFinite(latitude) ||
+          !isFinite(longitude)
+        ) {
+          return;
+        }
+
         const pt = await mapRef.current!.pointForCoordinate(m.coordinate);
         if (pt) next[m.id] = pt;
       })
