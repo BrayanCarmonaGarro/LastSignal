@@ -40,7 +40,7 @@ type TabView = 'map' | 'list';
 
 export default function TripsIndexScreen() {
   const insets = useSafeAreaInsets();
-  const { registerRefreshHandler } = useSwipeTabsGesture();
+  //const { registerRefreshHandler } = useSwipeTabsGesture();
   const mapRef = useRef<MapView>(null);
 
   const [userLocation, setUserLocation] = useState<{
@@ -155,8 +155,8 @@ export default function TripsIndexScreen() {
   const tripStatus = activeTrip?.status ?? null;
 
   useEffect(() => {
-    registerRefreshHandler(TAB_ORDER.indexOf('trips'), refresh);
-  }, [refresh, registerRefreshHandler]);
+    //registerRefreshHandler(TAB_ORDER.indexOf('trips'), refresh);
+  }, [refresh, ]); //registerRefreshHandler]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

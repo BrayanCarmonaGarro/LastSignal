@@ -33,7 +33,7 @@ export function useTrip(): UseTripReturn {
     setOxygenConsuming,
     clearRoute,
     resetOxygen,
-    setDangerZones, // 👈
+    setDangerZones,
   } = useTripStore();
 
   const [isStarting, setIsStarting] = useState(false);
@@ -64,7 +64,6 @@ export function useTrip(): UseTripReturn {
           console.error("[useTrip] Error al generar drops iniciales:", err),
         );
 
-        // 👈 Carga las danger zones ya existentes
         const zones = await tripService.getDangerZones(existingTrip.id).catch((err) => {
           console.error("[useTrip] Error al cargar danger zones:", err);
           return [];
@@ -89,7 +88,6 @@ export function useTrip(): UseTripReturn {
         console.error("[useTrip] Error al generar drops iniciales:", err),
       );
 
-      // 👈 Genera y guarda las danger zones para el viaje nuevo
       const zones = await generateDangerZones(
         trip.id,
         locationResult.coords.latitude,
