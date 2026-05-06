@@ -1,13 +1,13 @@
+// src/app/(app)/(tabs)/resources/index.tsx
 import React, { useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, ActivityIndicator,
-  StatusBar, RefreshControl,
+  StatusBar, RefreshControl, TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useResourceStore } from '@/store/resourceStore';
-//import { useSwipeTabsGesture } from '@/components/ui/SwipeTabsGesture';
-//import { TAB_ORDER } from '@/hooks/useSwipeTabsGesture.utils';
 import { Resource } from '@/services/api/resources.api';
 import { UIResource, ResourceStatus } from '@/types/resource.types';
 import { MAX_AMOUNTS } from '@/constants/resources';
@@ -34,17 +34,12 @@ function toUIResource(r: Resource): UIResource {
   };
 }
 
-
 // ── Pantalla principal ───────────────────────────────────────────
 export default function ResourcesScreen() {
+  const router = useRouter();
   const { resources, loading, error, fetchResources } = useResourceStore();
-  //const { registerRefreshHandler } = useSwipeTabsGesture();
 
   useEffect(() => { fetchResources(); }, []);
-
-  useEffect(() => {
-    //registerRefreshHandler(TAB_ORDER.indexOf('resources'), fetchResources);
-  }, [fetchResources, ]);// registerRefreshHandler]);
 
   const uiResources = useMemo(() => resources.map(toUIResource), [resources]);
 
@@ -64,11 +59,22 @@ export default function ResourcesScreen() {
 
   const keyExtractor = useCallback((item: UIResource) => item.id, []);
 
+  const goToManage = useCallback(() => router.push('/(app)/(tabs)/resources/manage'), [router]);
+
   const ListHeader = (
     <View>
       <View style={styles.header}>
-        <Text style={styles.title}>RECURSOS</Text>
-        <Text style={styles.subtitle}>Gestión de Inventario</Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.title}>RECURSOS</Text>
+            <Text style={styles.subtitle}>Gestión de Inventario</Text>
+          </View>
+          {/* Botón de transferencia en header */}
+          <TouchableOpacity style={styles.transferBtn} onPress={goToManage} activeOpacity={0.75}>
+            <Ionicons name="swap-horizontal" size={14} color={T.accentGold} />
+            <Text style={styles.transferBtnText}>TRANSFERIR</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.headerDivider} />
       </View>
     </View>
@@ -138,6 +144,11 @@ export default function ResourcesScreen() {
           />
         }
       />
+
+      {/* FAB de transferencia */}
+      <TouchableOpacity style={styles.fab} onPress={goToManage} activeOpacity={0.85}>
+        <Ionicons name="swap-horizontal" size={20} color="#0A0C0F" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -149,7 +160,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingBottom: 24,
+    paddingBottom: 88, // espacio para el FAB
   },
 
   // Header
@@ -157,6 +168,12 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     paddingHorizontal: 16,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   title: {
     fontFamily: 'BarlowCondensed-700',
@@ -171,11 +188,47 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: T.textSecondary,
     marginTop: 2,
-    marginBottom: 12,
   },
   headerDivider: {
     height: 1,
     backgroundColor: T.border,
+  },
+
+  // Botón header
+  transferBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: T.accentGold,
+    borderRadius: 2,
+    backgroundColor: T.accentGold + '12',
+  },
+  transferBtnText: {
+    fontFamily: 'ShareTechMono',
+    fontSize: 8,
+    letterSpacing: 1.5,
+    color: T.accentGold,
+  },
+
+  // FAB
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: T.accentGold,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: T.accentGold,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
 
   // Estados
