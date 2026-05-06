@@ -11,8 +11,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/constants/theme";
 import { useDashboard } from "@/hooks/dashboard/useDashboard";
-import { useSwipeTabsGesture } from "@/components/ui/SwipeTabsGesture";
-import { TAB_ORDER } from "@/hooks/useSwipeTabsGesture.utils";
+//import { useSwipeTabsGesture } from "@/components/ui/SwipeTabsGesture";
+//import { TAB_ORDER } from "@/hooks/useSwipeTabsGesture.utils";
 import { makeStyles } from "@/styles/dashboardStyles";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import { CriticalResourceBar } from "@/components/dashboard/CriticalResourceBar";
@@ -21,13 +21,14 @@ import { LogbookRecentRow } from "@/components/dashboard/LogbookRecentRow";
 import { SectionHeader } from "@/components/dashboard/SectionHeader";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ProfileModal } from "@/components/dashboard/ProfileModal";
+import { RecentAchievementsSection } from "@/components/dashboard/RecentAchievementsSection";
 
 export default function DashboardScreen() {
   const theme = useTheme();
   const { colors, iconSizes } = theme;
   const s = makeStyles(theme);
 
-  const { registerRefreshHandler } = useSwipeTabsGesture();
+  //const { registerRefreshHandler } = useSwipeTabsGesture();
 
   const {
     router,
@@ -55,8 +56,8 @@ export default function DashboardScreen() {
   } = useDashboard();
 
   useEffect(() => {
-    registerRefreshHandler(TAB_ORDER.indexOf("dashboard"), refresh);
-  }, [refresh, registerRefreshHandler]);
+    //registerRefreshHandler(TAB_ORDER.indexOf("dashboard"), refresh);
+  }, [refresh, ]);//registerRefreshHandler]);
 
   if (isLoading && !data) {
     return <DashboardSkeleton />;
@@ -64,7 +65,7 @@ export default function DashboardScreen() {
 
   if (error && !data) {
     return (
-      <SafeAreaView style={s.safeArea}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={s.safeArea}>
         <View style={s.errorContainer}>
           <Ionicons
             name="warning-outline"
@@ -82,7 +83,7 @@ export default function DashboardScreen() {
   }
 
   return (
-    <SafeAreaView style={s.safeArea}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={s.safeArea}>
       <ScrollView
         contentContainerStyle={s.scrollContent}
         refreshControl={
@@ -263,6 +264,10 @@ export default function DashboardScreen() {
             Sin entradas. Usa la cámara para registrar formas de vida.
           </Text>
         )}
+
+        <RecentAchievementsSection
+          achievements={data?.recent_achievements ?? []}
+        />
       </ScrollView>
 
       <ProfileModal

@@ -1,35 +1,61 @@
 // src/components/trips/markers/WaypointMarker.tsx
-import React from 'react';
-import { Text, StyleSheet } from 'react-native';
-import { BaseMapMarker } from './BaseMapMarker';
+import React from "react";
+import { Text, StyleSheet } from "react-native";
+import { BaseOverlayMarker } from "./BaseOverlayMarker";
 
 interface Props {
-  coordinate: { latitude: number; longitude: number };
-  index: number;          // número del waypoint
+  screenX: number;
+  screenY: number;
+  index: number;
   label?: string;
   visited?: boolean;
-  onPress?: () => void;
+  onPress?: (latitude: number, longitude: number) => void;
+   showCallout?: boolean;
+  latitude: number;
+  longitude: number;
 }
 
-export function WaypointMarker({ coordinate, index, label, visited, onPress }: Props) {
+export function WaypointMarker({
+  screenX,
+  screenY,
+  index,
+  label,
+  visited,
+  onPress,
+  latitude,
+  longitude,
+  showCallout = true,
+}: Props) {
+  const color = visited ? "#6b7280" : "#8b5cf6";
+
   return (
-    <BaseMapMarker
-      coordinate={coordinate}
+    <BaseOverlayMarker
+      screenX={screenX}
+      screenY={screenY}
       icon={<Text style={s.num}>{index}</Text>}
-      color={visited ? '#6b7280' : '#8b5cf6'}
+      color={color}
       size="md"
       shape="circle"
-      status={visited ? 'inactive' : 'active'}
-      callout={label ? {
-        title: `Punto ${index}`,
-        subtitle: label,
-        actions: [{ label: 'Navegar aquí', onPress: onPress ?? (() => {}) }],
-      } : undefined}
-      onPress={onPress}
+      status={visited ? "inactive" : "active"}
+      callout={
+        showCallout && label
+          ? {
+              title: `Punto ${index}`,
+              subtitle: label,
+              actions: [
+                {
+                  label: "Navegar aquí",
+                  onPress: onPress ? () => onPress(latitude, longitude) : () => {},
+                },
+              ],
+            }
+          : undefined
+      }
+      onPress={onPress ? () => onPress(latitude, longitude) : undefined}
     />
   );
 }
 
 const s = StyleSheet.create({
-  num: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  num: { fontSize: 14, fontWeight: "700", color: "#fff" },
 });

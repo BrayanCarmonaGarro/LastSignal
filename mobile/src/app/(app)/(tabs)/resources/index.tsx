@@ -6,8 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useResourceStore } from '@/store/resourceStore';
-import { useSwipeTabsGesture } from '@/components/ui/SwipeTabsGesture';
-import { TAB_ORDER } from '@/hooks/useSwipeTabsGesture.utils';
+//import { useSwipeTabsGesture } from '@/components/ui/SwipeTabsGesture';
+//import { TAB_ORDER } from '@/hooks/useSwipeTabsGesture.utils';
 import { Resource } from '@/services/api/resources.api';
 import { UIResource, ResourceStatus } from '@/types/resource.types';
 import { MAX_AMOUNTS } from '@/constants/resources';
@@ -21,8 +21,8 @@ function toUIResource(r: Resource): UIResource {
   const maxAmount = MAX_AMOUNTS[r.name] ?? 100;
   const pct = maxAmount > 0 ? (r.current_amount / maxAmount) * 100 : 0;
   const status: ResourceStatus =
-    r.is_critical    ? 'CRITICAL' :
-    pct < 40         ? 'LOW' :
+    r.current_amount <= r.min_threshold ? 'CRITICAL' :
+    pct < 40                            ? 'LOW' :
     'NORMAL';
   return {
     ...r,
@@ -38,13 +38,13 @@ function toUIResource(r: Resource): UIResource {
 // ── Pantalla principal ───────────────────────────────────────────
 export default function ResourcesScreen() {
   const { resources, loading, error, fetchResources } = useResourceStore();
-  const { registerRefreshHandler } = useSwipeTabsGesture();
+  //const { registerRefreshHandler } = useSwipeTabsGesture();
 
   useEffect(() => { fetchResources(); }, []);
 
   useEffect(() => {
-    registerRefreshHandler(TAB_ORDER.indexOf('resources'), fetchResources);
-  }, [fetchResources, registerRefreshHandler]);
+    //registerRefreshHandler(TAB_ORDER.indexOf('resources'), fetchResources);
+  }, [fetchResources, ]);// registerRefreshHandler]);
 
   const uiResources = useMemo(() => resources.map(toUIResource), [resources]);
 
@@ -80,7 +80,7 @@ export default function ResourcesScreen() {
 
   if (loading && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -93,7 +93,7 @@ export default function ResourcesScreen() {
 
   if (error && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -107,7 +107,7 @@ export default function ResourcesScreen() {
 
   if (!loading && resources.length === 0) {
     return (
-      <SafeAreaView style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         {ListHeader}
         <View style={styles.center}>
@@ -119,7 +119,7 @@ export default function ResourcesScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.root}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
       <FlatList
         data={uiResources}

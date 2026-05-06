@@ -24,3 +24,25 @@ export interface DashboardActiveTrip {
   oxygen_consumed: number;
   started_at: string;
 }
+
+export type WaypointStatus = 'PENDING' | 'REACHED';
+export type DangerSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface TripWaypoint {
+  id: string;
+  name: string | null;
+  latitude: number;
+  longitude: number;
+  status: WaypointStatus;
+  reached_at: string | null;
+  trip_id: string;
+}
+
+export interface TripDangerZone {
+  id: string;
+  description: string | null;
+  latitude: number;
+  longitude: number;
+  severity: DangerSeverity;
+  trip_id: string;
+}

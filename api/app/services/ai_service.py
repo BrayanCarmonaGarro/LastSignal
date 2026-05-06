@@ -1,10 +1,8 @@
-# Clasificación de imágenes
 import json
 from typing import Optional
 import httpx
 from app.core.config import settings
 from app.models.logbook import DangerLevel, LifeFormCategory
-
 
 class AIClassificationResult:
     def __init__(
@@ -19,12 +17,11 @@ class AIClassificationResult:
         self.confidence = confidence
         self.raw_response = raw_response
 
-
 async def classify_life_form(
     photo_url: str, description: str
 ) -> Optional[AIClassificationResult]:
     """
-    Clasifica una forma de vida usando IA a partir de una foto y descripción.
+    Clasifica una forma de vida usando Gemini a partir de una foto y descripción.
     Retorna None si la clasificación falla.
     """
     if not settings.ai_api_key:
@@ -44,25 +41,37 @@ async def classify_life_form(
     Determine danger level: DANGEROUS, FRIENDLY, UNKNOWN
     Provide confidence from 0.0 to 1.0
 
-    Respond ONLY in JSON:
+    Respond ONLY in JSON with this exact structure:
     {{"classification": "...", "danger_level": "...", "confidence": 0.0, "reasoning": "..."}}
     """
 
     try:
         async with httpx.AsyncClient() as client:
+            # Endpoint de Gemini 1.5 Flash (ideal para tareas rápidas multimodales y JSON)
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.ai_api_key}"
+            
+            payload = {
+                "contents": [{
+                    "parts": [{"text": prompt}]
+                }],
+                "generationConfig": {
+                    "responseMimeType": "application/json"
+                }
+            }
+
             response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {settings.ai_api_key}"},
-                json={
-                    "model": "gpt-4o",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "response_format": {"type": "json_object"},
-                },
+                gemini_url,
+                json=payload,
                 timeout=30,
             )
+            response.raise_for_status()
+            
             data = response.json()
-            result = data["choices"][0]["message"]["content"]
+            
+            # Extraer el texto de la respuesta de Gemini
+            result = data["candidates"][0]["content"]["parts"][0]["text"]
             parsed = json.loads(result)
+            
             return AIClassificationResult(
                 classification=LifeFormCategory(
                     parsed.get("classification", "UNKNOWN_ORGANISM")
@@ -71,14 +80,9 @@ async def classify_life_form(
                 confidence=float(parsed.get("confidence", 0.0)),
                 raw_response=result,
             )
-    except Exception:
+    except Exception as e:
+        print(f"Error en clasificación Gemini: {e}")
         return None
 
-
 async def find_matching_entry(photo_url: str, entries: list) -> Optional[str]:
-    """
-    Compara una foto con las entradas de la bitácora y retorna el ID de la más similar.
-    Retorna None si no hay coincidencia.
-    Por ahora es un placeholder — se puede implementar con embeddings de imágenes.
-    """
     return None
