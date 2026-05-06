@@ -1,5 +1,5 @@
 // src/app/(app)/(tabs)/resources/manage.tsx
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,22 +14,19 @@ import {
   Platform,
   UIManager,
   Alert,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
-import { apiRequest } from "@/services/api/client";
-import { shipBasesApi } from "@/services/api/shipBases.api";
-import { useResourceStore } from "@/store/resourceStore";
-import { resourcesTheme as T } from "@/constants/theme/screens/resources";
-import { UNIT_LABELS } from "@/constants/labels";
-import { ResourceCategory, ResourceUnit } from "@/types/resource.types";
+import { apiRequest } from '@/services/api/client';
+import { shipBasesApi } from '@/services/api/shipBases.api';
+import { useResourceStore } from '@/store/resourceStore';
+import { resourcesTheme as T } from '@/constants/theme/screens/resources';
+import { UNIT_LABELS } from '@/constants/labels';
+import { ResourceCategory, ResourceUnit } from '@/types/resource.types';
 
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
@@ -46,7 +43,8 @@ interface StorageResource {
   ship_base_id: string;
 }
 
-type TransferDirection = "TO_INVENTORY" | "TO_STORAGE";
+type TransferDirection = 'TO_INVENTORY' | 'TO_STORAGE';
+type PanelTab = 'TRANSFER' | 'HISTORY';
 
 interface MatchedResource {
   name: string;
@@ -59,51 +57,233 @@ interface MatchedResource {
   min_threshold: number;
 }
 
+interface ResourceLog {
+  id: string;
+  type: 'INTAKE' | 'EXPENSE';
+  amount: number;
+  reason?: string | null;
+  created_at: string;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────
 
-// Llama al endpoint de logs directamente con el tipo en el formato que espera la API
 async function postLog(
   path: string,
-  type: "INTAKE" | "EXPENSE",
+  type: 'INTAKE' | 'EXPENSE',
   amount: number,
   reason: string,
 ) {
   return apiRequest(path, {
-    method: "POST",
+    method: 'POST',
     body: JSON.stringify({ type, amount, reason }),
   });
 }
 
 function extractErrorMessage(e: unknown): string {
   if (e instanceof Error) return e.message;
-  if (e && typeof e === "object") {
+  if (e && typeof e === 'object') {
     const obj = e as any;
-    if (typeof obj.detail === "string") return obj.detail;
-    if (Array.isArray(obj.detail))
-      return obj.detail.map((d: any) => d.msg).join(", ");
-    if (typeof obj.message === "string") return obj.message;
+    if (typeof obj.detail === 'string') return obj.detail;
+    if (Array.isArray(obj.detail)) return obj.detail.map((d: any) => d.msg).join(', ');
+    if (typeof obj.message === 'string') return obj.message;
     return JSON.stringify(obj);
   }
   return String(e);
 }
 
+function formatLogDate(iso: string): string {
+  const d = new Date(iso);
+  const day   = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const hour  = String(d.getHours()).padStart(2, '0');
+  const min   = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month} ${hour}:${min}`;
+}
+
 // ── Constantes visuales ──────────────────────────────────────────
 
 const CATEGORY_COLORS: Record<ResourceCategory, string> = {
-  VITAL: "#C8A951",
-  FOOD: "#6BAF7A",
-  MEDICAL: "#E07070",
-  EQUIPMENT: "#7B9EC8",
-  FUEL: "#C87B40",
+  VITAL:     '#C8A951',
+  FOOD:      '#6BAF7A',
+  MEDICAL:   '#E07070',
+  EQUIPMENT: '#7B9EC8',
+  FUEL:      '#C87B40',
 };
 
 const CATEGORY_LABELS: Record<ResourceCategory, string> = {
-  VITAL: "VITAL",
-  FOOD: "ALIMENTOS",
-  MEDICAL: "MÉDICO",
-  EQUIPMENT: "EQUIPO",
-  FUEL: "COMBUSTIBLE",
+  VITAL:     'VITAL',
+  FOOD:      'ALIMENTOS',
+  MEDICAL:   'MÉDICO',
+  EQUIPMENT: 'EQUIPO',
+  FUEL:      'COMBUSTIBLE',
 };
+
+const LOGS_PER_PAGE = 5;
+
+// ── LogItem ──────────────────────────────────────────────────────
+
+function LogItem({ log, unit }: { log: ResourceLog; unit: string }) {
+  const isIntake = log.type === 'INTAKE';
+  const color    = isIntake ? '#6BAF7A' : '#E07070';
+  const icon     = isIntake ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline';
+  const sign     = isIntake ? '+' : '−';
+
+  return (
+    <View style={logStyles.row}>
+      <Ionicons name={icon} size={14} color={color} style={{ marginTop: 1 }} />
+      <View style={logStyles.info}>
+        <Text style={logStyles.reason} numberOfLines={1}>
+          {log.reason ?? (isIntake ? 'Ingreso' : 'Egreso')}
+        </Text>
+        <Text style={logStyles.date}>{formatLogDate(log.created_at)}</Text>
+      </View>
+      <Text style={[logStyles.amount, { color }]}>
+        {sign}{log.amount % 1 === 0 ? log.amount : log.amount.toFixed(1)} {unit}
+      </Text>
+    </View>
+  );
+}
+
+const logStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: T.border + '80',
+  },
+  info: { flex: 1, gap: 2 },
+  reason: {
+    fontFamily: 'ShareTechMono',
+    fontSize: 9,
+    color: T.textSecondary,
+    letterSpacing: 0.5,
+  },
+  date: {
+    fontFamily: 'ShareTechMono',
+    fontSize: 8,
+    color: T.textMuted,
+    letterSpacing: 0.5,
+  },
+  amount: {
+    fontFamily: 'BarlowCondensed-700',
+    fontSize: 13,
+    letterSpacing: 1,
+  },
+});
+
+// ── LogsPanel ────────────────────────────────────────────────────
+
+function LogsPanel({ inventoryId, unit }: { inventoryId: string; unit: string }) {
+  const [logs, setLogs]         = useState<ResourceLog[]>([]);
+  const [page, setPage]         = useState(1);
+  const [hasMore, setHasMore]   = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const initialized             = useRef(false);
+
+  const loadLogs = useCallback(async (nextPage: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const limit  = LOGS_PER_PAGE + 1; // pide uno extra para saber si hay más
+      const skip   = (nextPage - 1) * LOGS_PER_PAGE;
+      const result = await apiRequest<ResourceLog[]>(
+        `/inventory/${inventoryId}/logs?skip=${skip}&limit=${limit}`,
+      );
+      const slice  = result.slice(0, LOGS_PER_PAGE);
+      setHasMore(result.length > LOGS_PER_PAGE);
+      setLogs(prev => nextPage === 1 ? slice : [...prev, ...slice]);
+      setPage(nextPage);
+    } catch (e) {
+      setError(extractErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [inventoryId]);
+
+  useEffect(() => {
+    if (!initialized.current) {
+      initialized.current = true;
+      loadLogs(1);
+    }
+  }, []);
+
+  if (loading && logs.length === 0) {
+    return (
+      <View style={lpStyles.center}>
+        <ActivityIndicator color={T.accentGold} size="small" />
+        <Text style={lpStyles.stateText}>CARGANDO HISTORIAL...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={lpStyles.center}>
+        <Ionicons name="alert-circle-outline" size={18} color={T.statusCritical} />
+        <Text style={[lpStyles.stateText, { color: T.statusCritical }]}>{error}</Text>
+        <TouchableOpacity onPress={() => loadLogs(1)} style={lpStyles.retryBtn}>
+          <Text style={lpStyles.retryText}>REINTENTAR</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (logs.length === 0) {
+    return (
+      <View style={lpStyles.center}>
+        <Ionicons name="time-outline" size={20} color={T.textMuted} />
+        <Text style={lpStyles.stateText}>SIN REGISTROS AÚN</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View>
+      {logs.map((log) => (
+        <LogItem key={log.id} log={log} unit={unit} />
+      ))}
+
+      {hasMore && (
+        <TouchableOpacity
+          style={lpStyles.moreBtn}
+          onPress={() => loadLogs(page + 1)}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={T.accentGold} size="small" />
+          ) : (
+            <>
+              <Ionicons name="chevron-down" size={12} color={T.accentGold} />
+              <Text style={lpStyles.moreText}>VER MÁS</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const lpStyles = StyleSheet.create({
+  center:    { alignItems: 'center', paddingVertical: 20, gap: 6 },
+  stateText: { fontFamily: 'ShareTechMono', fontSize: 9, letterSpacing: 2, color: T.textMuted, textAlign: 'center' },
+  retryBtn:  { paddingHorizontal: 14, paddingVertical: 5, borderWidth: 1, borderColor: T.accentGold, borderRadius: 2, marginTop: 4 },
+  retryText: { fontFamily: 'ShareTechMono', fontSize: 9, letterSpacing: 2, color: T.accentGold },
+  moreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 10,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: T.accentGold + '60',
+    borderRadius: 2,
+  },
+  moreText: { fontFamily: 'ShareTechMono', fontSize: 9, letterSpacing: 2, color: T.accentGold },
+});
 
 // ── ResourceAccordion ────────────────────────────────────────────
 
@@ -116,54 +296,35 @@ interface ResourceAccordionProps {
 }
 
 function ResourceAccordion({
-  resource,
-  shipBaseId,
-  onTransferDone,
-  expandedId,
-  onExpand,
+  resource, shipBaseId, onTransferDone, expandedId, onExpand,
 }: ResourceAccordionProps) {
   const isOpen = expandedId === resource.inventoryId;
-  const color = CATEGORY_COLORS[resource.category];
-  const unit = UNIT_LABELS[resource.unit] ?? resource.unit;
+  const color  = CATEGORY_COLORS[resource.category];
+  const unit   = UNIT_LABELS[resource.unit] ?? resource.unit;
 
-  const [direction, setDirection] = useState<TransferDirection>("TO_INVENTORY");
-  const [amountText, setAmountText] = useState("");
+  const [activeTab, setActiveTab]       = useState<PanelTab>('TRANSFER');
+  const [direction, setDirection]       = useState<TransferDirection>('TO_INVENTORY');
+  const [amountText, setAmountText]     = useState('');
   const [transferring, setTransferring] = useState(false);
 
-  const heightAnim = useRef(new Animated.Value(0)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
-  const arrowScale = useRef(new Animated.Value(1)).current;
+  const heightAnim   = useRef(new Animated.Value(0)).current;
+  const opacityAnim  = useRef(new Animated.Value(0)).current;
+  const arrowScale   = useRef(new Animated.Value(1)).current;
   const confirmPulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (isOpen) {
-      setAmountText("");
-      setDirection("TO_INVENTORY");
+      setAmountText('');
+      setDirection('TO_INVENTORY');
+      setActiveTab('TRANSFER');
       Animated.parallel([
-        Animated.spring(heightAnim, {
-          toValue: 1,
-          useNativeDriver: false,
-          tension: 140,
-          friction: 12,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: false,
-        }),
+        Animated.spring(heightAnim,  { toValue: 1, useNativeDriver: false, tension: 140, friction: 12 }),
+        Animated.timing(opacityAnim, { toValue: 1, duration: 180, useNativeDriver: false }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(heightAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 0,
-          duration: 140,
-          useNativeDriver: false,
-        }),
+        Animated.timing(heightAnim,  { toValue: 0, duration: 200, useNativeDriver: false }),
+        Animated.timing(opacityAnim, { toValue: 0, duration: 140, useNativeDriver: false }),
       ]).start();
     }
   }, [isOpen]);
@@ -175,31 +336,22 @@ function ResourceAccordion({
 
   const toggleDirection = () => {
     Animated.sequence([
-      Animated.timing(arrowScale, {
-        toValue: 1.4,
-        duration: 90,
-        useNativeDriver: true,
-      }),
-      Animated.timing(arrowScale, {
-        toValue: 1,
-        duration: 90,
-        useNativeDriver: true,
-      }),
+      Animated.timing(arrowScale, { toValue: 1.4, duration: 90, useNativeDriver: true }),
+      Animated.timing(arrowScale, { toValue: 1,   duration: 90, useNativeDriver: true }),
     ]).start();
-    setDirection((d) => (d === "TO_INVENTORY" ? "TO_STORAGE" : "TO_INVENTORY"));
-    setAmountText("");
+    setDirection(d => d === 'TO_INVENTORY' ? 'TO_STORAGE' : 'TO_INVENTORY');
+    setAmountText('');
   };
 
-  const sourceAmount =
-    direction === "TO_INVENTORY"
-      ? resource.storageAmount
-      : resource.inventoryAmount;
+  const sourceAmount = direction === 'TO_INVENTORY'
+    ? resource.storageAmount
+    : resource.inventoryAmount;
 
   const parsedAmount = parseFloat(amountText) || 0;
 
   const amountError = useMemo(() => {
     if (!amountText) return null;
-    if (parsedAmount <= 0) return "Debe ser mayor a 0";
+    if (parsedAmount <= 0)           return 'Debe ser mayor a 0';
     if (parsedAmount > sourceAmount) return `Máx: ${sourceAmount.toFixed(1)}`;
     return null;
   }, [amountText, parsedAmount, sourceAmount]);
@@ -210,93 +362,70 @@ function ResourceAccordion({
     if (!canTransfer) return;
     setTransferring(true);
     Animated.sequence([
-      Animated.timing(confirmPulse, {
-        toValue: 0.93,
-        duration: 70,
-        useNativeDriver: true,
-      }),
-      Animated.timing(confirmPulse, {
-        toValue: 1,
-        duration: 70,
-        useNativeDriver: true,
-      }),
+      Animated.timing(confirmPulse, { toValue: 0.93, duration: 70, useNativeDriver: true }),
+      Animated.timing(confirmPulse, { toValue: 1,    duration: 70, useNativeDriver: true }),
     ]).start();
 
     try {
-      if (direction === "TO_INVENTORY") {
-        // Descontar del storage
+      if (direction === 'TO_INVENTORY') {
         await postLog(
           `/ship-bases/${shipBaseId}/storage/${resource.storageId}/logs`,
-          "EXPENSE",
+          'EXPENSE',
           parsedAmount,
-          "Transferencia al inventario",
+          'Transferencia al inventario',
         );
-        // Agregar al inventario
         await postLog(
           `/inventory/${resource.inventoryId}/logs`,
-          "INTAKE",
+          'INTAKE',
           parsedAmount,
-          "Transferencia desde almacén",
+          'Transferencia desde almacén',
         );
       } else {
-        // Descontar del inventario
         await postLog(
           `/inventory/${resource.inventoryId}/logs`,
-          "EXPENSE",
+          'EXPENSE',
           parsedAmount,
-          "Transferencia al almacén",
+          'Transferencia al almacén',
         );
-        // Agregar al storage
         await postLog(
           `/ship-bases/${shipBaseId}/storage/${resource.storageId}/logs`,
-          "INTAKE",
+          'INTAKE',
           parsedAmount,
-          "Transferencia desde inventario",
+          'Transferencia desde inventario',
         );
       }
 
-      setAmountText("");
+      setAmountText('');
       onExpand(null);
       await onTransferDone();
-      Alert.alert(
-        "✓ TRANSFERENCIA EXITOSA",
-        `${parsedAmount} ${unit} de ${resource.name} transferidos.`,
-      );
+      Alert.alert('✓ TRANSFERENCIA EXITOSA', `${parsedAmount} ${unit} de ${resource.name} transferidos.`);
     } catch (e) {
-      Alert.alert("ERROR DE TRANSFERENCIA", extractErrorMessage(e));
+      Alert.alert('ERROR DE TRANSFERENCIA', extractErrorMessage(e));
     } finally {
       setTransferring(false);
     }
   };
 
+  // El panel crece más cuando está en HISTORY para acomodar los logs
   const panelMaxHeight = heightAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 380],
+    inputRange:  [0, 1],
+    outputRange: [0, activeTab === 'HISTORY' ? 500 : 380],
   });
 
   return (
     <View style={[styles.accordionWrap, isOpen && { borderColor: color }]}>
+
       {/* ── Fila principal ── */}
-      <TouchableOpacity
-        style={styles.accordionRow}
-        onPress={handlePress}
-        activeOpacity={0.75}
-      >
+      <TouchableOpacity style={styles.accordionRow} onPress={handlePress} activeOpacity={0.75}>
         <View style={[styles.rowAccent, { backgroundColor: color }]} />
         <View style={styles.rowContent}>
-          <Text style={[styles.rowName, isOpen && { color }]}>
-            {resource.name}
-          </Text>
-          <Text style={styles.rowCategory}>
-            {CATEGORY_LABELS[resource.category]}
-          </Text>
+          <Text style={[styles.rowName, isOpen && { color }]}>{resource.name}</Text>
+          <Text style={styles.rowCategory}>{CATEGORY_LABELS[resource.category]}</Text>
         </View>
         <View style={styles.rowAmounts}>
           <View style={styles.amountCol}>
             <Text style={styles.amountColLabel}>ALM.</Text>
-            <Text style={styles.amountColValue}>
-              {resource.storageAmount.toFixed(0)}
-            </Text>
+            <Text style={styles.amountColValue}>{resource.storageAmount.toFixed(0)}</Text>
           </View>
           <View style={styles.amountColDivider} />
           <View style={styles.amountCol}>
@@ -308,7 +437,7 @@ function ResourceAccordion({
           <Text style={styles.amountColUnit}>{unit}</Text>
         </View>
         <Ionicons
-          name={isOpen ? "chevron-up" : "chevron-down"}
+          name={isOpen ? 'chevron-up' : 'chevron-down'}
           size={14}
           color={isOpen ? color : T.textMuted}
           style={{ marginRight: 12 }}
@@ -316,143 +445,145 @@ function ResourceAccordion({
       </TouchableOpacity>
 
       {/* ── Panel expandible ── */}
-      <Animated.View
-        style={[
-          styles.panel,
-          { maxHeight: panelMaxHeight, opacity: opacityAnim },
-        ]}
-      >
-        <View style={[styles.panelInner, { borderTopColor: color + "50" }]}>
-          {/* Balances + toggle */}
-          <View style={styles.balancesRow}>
-            <BalanceBox
-              label="ALMACÉN"
-              icon="server-outline"
-              amount={resource.storageAmount}
-              unit={unit}
-              highlight={direction === "TO_INVENTORY"}
-              color="#7B9EC8"
-            />
+      <Animated.View style={[styles.panel, { maxHeight: panelMaxHeight, opacity: opacityAnim }]}>
+        <View style={[styles.panelInner, { borderTopColor: color + '50' }]}>
+
+          {/* ── Tab switcher ── */}
+          <View style={[styles.tabRow, { borderColor: color + '40' }]}>
             <TouchableOpacity
-              onPress={toggleDirection}
-              activeOpacity={0.7}
-              style={styles.arrowBtn}
+              style={[styles.tabBtn, activeTab === 'TRANSFER' && { borderBottomColor: color }]}
+              onPress={() => setActiveTab('TRANSFER')}
             >
-              <Animated.View
-                style={[
-                  styles.arrowCircle,
-                  { transform: [{ scale: arrowScale }] },
-                ]}
-              >
-                <Ionicons
-                  name={
-                    direction === "TO_INVENTORY"
-                      ? "arrow-forward"
-                      : "arrow-back"
-                  }
-                  size={16}
+              <Ionicons
+                name="swap-horizontal-outline"
+                size={11}
+                color={activeTab === 'TRANSFER' ? color : T.textMuted}
+              />
+              <Text style={[styles.tabText, activeTab === 'TRANSFER' && { color }]}>
+                TRANSFERIR
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === 'HISTORY' && { borderBottomColor: color }]}
+              onPress={() => setActiveTab('HISTORY')}
+            >
+              <Ionicons
+                name="time-outline"
+                size={11}
+                color={activeTab === 'HISTORY' ? color : T.textMuted}
+              />
+              <Text style={[styles.tabText, activeTab === 'HISTORY' && { color }]}>
+                HISTORIAL
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Contenido de pestaña ── */}
+          {activeTab === 'TRANSFER' ? (
+
+            /* ── Transfer form ── */
+            <>
+              <View style={styles.balancesRow}>
+                <BalanceBox
+                  label="ALMACÉN"
+                  icon="server-outline"
+                  amount={resource.storageAmount}
+                  unit={unit}
+                  highlight={direction === 'TO_INVENTORY'}
+                  color="#7B9EC8"
+                />
+                <TouchableOpacity onPress={toggleDirection} activeOpacity={0.7} style={styles.arrowBtn}>
+                  <Animated.View style={[styles.arrowCircle, { transform: [{ scale: arrowScale }] }]}>
+                    <Ionicons
+                      name={direction === 'TO_INVENTORY' ? 'arrow-forward' : 'arrow-back'}
+                      size={16}
+                      color={T.accentGold}
+                    />
+                  </Animated.View>
+                  <Text style={styles.arrowLabel}>
+                    {direction === 'TO_INVENTORY' ? 'AL INV.' : 'AL ALM.'}
+                  </Text>
+                </TouchableOpacity>
+                <BalanceBox
+                  label="INVENTARIO"
+                  icon="cube-outline"
+                  amount={resource.inventoryAmount}
+                  unit={unit}
+                  highlight={direction === 'TO_STORAGE'}
                   color={T.accentGold}
                 />
+              </View>
+
+              <View style={styles.quickRow}>
+                {[0.25, 0.5, 1].map((pct) => (
+                  <TouchableOpacity
+                    key={pct}
+                    style={styles.quickBtn}
+                    onPress={() => setAmountText(Math.floor(sourceAmount * pct).toString())}
+                  >
+                    <Text style={styles.quickBtnText}>{pct === 1 ? 'MAX' : `${pct * 100}%`}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={[styles.inputWrap, amountError ? styles.inputWrapError : null]}>
+                <TextInput
+                  style={styles.amountInput}
+                  value={amountText}
+                  onChangeText={setAmountText}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={T.textMuted}
+                  selectionColor={T.accentGold}
+                />
+                <Text style={styles.inputUnit}>{unit}</Text>
+              </View>
+
+              {amountError
+                ? <Text style={styles.errorText}>{amountError}</Text>
+                : <Text style={styles.availableText}>
+                    DISPONIBLE: <Text style={{ color: T.accentGold }}>{sourceAmount.toFixed(1)}</Text>
+                  </Text>
+              }
+
+              <Animated.View style={{ transform: [{ scale: confirmPulse }] }}>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: canTransfer ? color : T.border }]}
+                  onPress={handleTransfer}
+                  disabled={!canTransfer}
+                  activeOpacity={0.85}
+                >
+                  {transferring ? (
+                    <ActivityIndicator color="#0A0C0F" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name={direction === 'TO_INVENTORY' ? 'arrow-down-circle' : 'arrow-up-circle'}
+                        size={15}
+                        color={canTransfer ? '#0A0C0F' : T.textMuted}
+                      />
+                      <Text style={[styles.confirmText, { color: canTransfer ? '#0A0C0F' : T.textMuted }]}>
+                        {direction === 'TO_INVENTORY' ? 'TRANSFERIR AL INVENTARIO' : 'TRANSFERIR AL ALMACÉN'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </Animated.View>
-              <Text style={styles.arrowLabel}>
-                {direction === "TO_INVENTORY" ? "AL INV." : "AL ALM."}
-              </Text>
-            </TouchableOpacity>
-            <BalanceBox
-              label="INVENTARIO"
-              icon="cube-outline"
-              amount={resource.inventoryAmount}
-              unit={unit}
-              highlight={direction === "TO_STORAGE"}
-              color={T.accentGold}
-            />
-          </View>
+            </>
 
-          {/* Quick amounts */}
-          <View style={styles.quickRow}>
-            {[0.25, 0.5, 1].map((pct) => (
-              <TouchableOpacity
-                key={pct}
-                style={styles.quickBtn}
-                onPress={() =>
-                  setAmountText(Math.floor(sourceAmount * pct).toString())
-                }
-              >
-                <Text style={styles.quickBtnText}>
-                  {pct === 1 ? "MAX" : `${pct * 100}%`}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* Input */}
-          <View
-            style={[
-              styles.inputWrap,
-              amountError ? styles.inputWrapError : null,
-            ]}
-          >
-            <TextInput
-              style={styles.amountInput}
-              value={amountText}
-              onChangeText={setAmountText}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={T.textMuted}
-              selectionColor={T.accentGold}
-            />
-            <Text style={styles.inputUnit}>{unit}</Text>
-          </View>
-
-          {amountError ? (
-            <Text style={styles.errorText}>{amountError}</Text>
           ) : (
-            <Text style={styles.availableText}>
-              DISPONIBLE:{" "}
-              <Text style={{ color: T.accentGold }}>
-                {sourceAmount.toFixed(1)}
-              </Text>
-            </Text>
+
+            /* ── Logs panel ── */
+            isOpen && (
+              <LogsPanel
+                key={resource.inventoryId}
+                inventoryId={resource.inventoryId}
+                unit={unit}
+              />
+            )
+
           )}
 
-          {/* Confirmar */}
-          <Animated.View style={{ transform: [{ scale: confirmPulse }] }}>
-            <TouchableOpacity
-              style={[
-                styles.confirmBtn,
-                { backgroundColor: canTransfer ? color : T.border },
-              ]}
-              onPress={handleTransfer}
-              disabled={!canTransfer}
-              activeOpacity={0.85}
-            >
-              {transferring ? (
-                <ActivityIndicator color="#0A0C0F" size="small" />
-              ) : (
-                <>
-                  <Ionicons
-                    name={
-                      direction === "TO_INVENTORY"
-                        ? "arrow-down-circle"
-                        : "arrow-up-circle"
-                    }
-                    size={15}
-                    color={canTransfer ? "#0A0C0F" : T.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.confirmText,
-                      { color: canTransfer ? "#0A0C0F" : T.textMuted },
-                    ]}
-                  >
-                    {direction === "TO_INVENTORY"
-                      ? "TRANSFERIR AL INVENTARIO"
-                      : "TRANSFERIR AL ALMACÉN"}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
         </View>
       </Animated.View>
     </View>
@@ -461,29 +592,12 @@ function ResourceAccordion({
 
 // ── BalanceBox ───────────────────────────────────────────────────
 
-function BalanceBox({
-  label,
-  icon,
-  amount,
-  unit,
-  highlight,
-  color,
-}: {
-  label: string;
-  icon: any;
-  amount: number;
-  unit: string;
-  highlight: boolean;
-  color: string;
+function BalanceBox({ label, icon, amount, unit, highlight, color }: {
+  label: string; icon: any; amount: number; unit: string; highlight: boolean; color: string;
 }) {
   return (
     <View style={[styles.balanceBox, highlight && { borderColor: color }]}>
-      <Ionicons
-        name={icon}
-        size={12}
-        color={highlight ? color : T.textMuted}
-        style={{ marginBottom: 3 }}
-      />
+      <Ionicons name={icon} size={12} color={highlight ? color : T.textMuted} style={{ marginBottom: 3 }} />
       <Text style={[styles.balanceLabel, highlight && { color }]}>{label}</Text>
       <Text style={[styles.balanceAmount, highlight && { color }]}>
         {Number.isInteger(amount) ? amount : amount.toFixed(1)}
@@ -498,11 +612,7 @@ function BalanceBox({
 function ScreenHeader({ onBack }: { onBack: () => void }) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity
-        onPress={onBack}
-        style={styles.backBtn}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
+      <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <Ionicons name="chevron-back" size={22} color={T.textPrimary} />
       </TouchableOpacity>
       <View>
@@ -516,30 +626,17 @@ function ScreenHeader({ onBack }: { onBack: () => void }) {
 
 // ── CategoryChip ─────────────────────────────────────────────────
 
-function CategoryChip({
-  label,
-  active,
-  color,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  color: string;
-  onPress: () => void;
+function CategoryChip({ label, active, color, onPress }: {
+  label: string; active: boolean; color: string; onPress: () => void;
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[
-        styles.categoryChip,
-        active && { borderColor: color, backgroundColor: color + "18" },
-      ]}
+      style={[styles.categoryChip, active && { borderColor: color, backgroundColor: color + '18' }]}
       activeOpacity={0.7}
     >
       {active && <View style={[styles.chipDot, { backgroundColor: color }]} />}
-      <Text style={[styles.categoryChipText, active && { color }]}>
-        {label}
-      </Text>
+      <Text style={[styles.categoryChipText, active && { color }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -550,33 +647,22 @@ export default function ManageScreen() {
   const router = useRouter();
   const { resources: inventoryResources, fetchResources } = useResourceStore();
 
-  const [storageResources, setStorageResources] = useState<StorageResource[]>(
-    [],
-  );
-  const [shipBaseId, setShipBaseId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<
-    ResourceCategory | "ALL"
-  >("ALL");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [storageResources, setStorageResources] = useState<StorageResource[]>([]);
+  const [shipBaseId, setShipBaseId]             = useState<string | null>(null);
+  const [loading, setLoading]                   = useState(true);
+  const [error, setError]                       = useState<string | null>(null);
+  const [activeCategory, setActiveCategory]     = useState<ResourceCategory | 'ALL'>('ALL');
+  const [expandedId, setExpandedId]             = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAll();
-  }, []);
+  useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [base] = await Promise.all([
-        shipBasesApi.getMe(),
-        fetchResources(),
-      ]);
+      const [base] = await Promise.all([shipBasesApi.getMe(), fetchResources()]);
       setShipBaseId(base.id);
-      const storage = await apiRequest<StorageResource[]>(
-        `/ship-bases/${base.id}/storage`,
-      );
+      const storage = await apiRequest<StorageResource[]>(`/ship-bases/${base.id}/storage`);
       setStorageResources(storage);
     } catch (e) {
       setError(extractErrorMessage(e));
@@ -589,18 +675,18 @@ export default function ManageScreen() {
     return inventoryResources
       .map((inv) => {
         const storage = storageResources.find(
-          (s) => s.name.toLowerCase() === inv.name.toLowerCase(),
+          (s) => s.name.toLowerCase() === inv.name.toLowerCase()
         );
         if (!storage) return null;
         return {
-          name: inv.name,
-          category: inv.category,
-          unit: inv.unit,
-          inventoryId: inv.id,
-          storageId: storage.id,
+          name:            inv.name,
+          category:        inv.category,
+          unit:            inv.unit,
+          inventoryId:     inv.id,
+          storageId:       storage.id,
           inventoryAmount: inv.current_amount,
-          storageAmount: storage.current_amount,
-          min_threshold: inv.min_threshold,
+          storageAmount:   storage.current_amount,
+          min_threshold:   inv.min_threshold,
         } as MatchedResource;
       })
       .filter(Boolean) as MatchedResource[];
@@ -611,17 +697,16 @@ export default function ManageScreen() {
     [matchedResources],
   );
 
-  const filteredResources = useMemo(
-    () =>
-      activeCategory === "ALL"
-        ? matchedResources
-        : matchedResources.filter((r) => r.category === activeCategory),
+  const filteredResources = useMemo(() =>
+    activeCategory === 'ALL'
+      ? matchedResources
+      : matchedResources.filter((r) => r.category === activeCategory),
     [matchedResources, activeCategory],
   );
 
   if (loading) {
     return (
-      <SafeAreaView edges={["left", "right", "bottom"]} style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         <ScreenHeader onBack={() => router.back()} />
         <View style={styles.center}>
@@ -634,18 +719,12 @@ export default function ManageScreen() {
 
   if (error) {
     return (
-      <SafeAreaView edges={["left", "right", "bottom"]} style={styles.root}>
+      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
         <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
         <ScreenHeader onBack={() => router.back()} />
         <View style={styles.center}>
-          <Ionicons
-            name="alert-circle-outline"
-            size={32}
-            color={T.statusCritical}
-          />
-          <Text style={[styles.stateText, { color: T.statusCritical }]}>
-            ERROR DE CONEXIÓN
-          </Text>
+          <Ionicons name="alert-circle-outline" size={32} color={T.statusCritical} />
+          <Text style={[styles.stateText, { color: T.statusCritical }]}>ERROR DE CONEXIÓN</Text>
           <Text style={styles.stateSubText}>{error}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={loadAll}>
             <Text style={styles.retryText}>REINTENTAR</Text>
@@ -656,7 +735,7 @@ export default function ManageScreen() {
   }
 
   return (
-    <SafeAreaView edges={["left", "right", "bottom"]} style={styles.root}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor={T.bg} />
       <ScreenHeader onBack={() => router.back()} />
 
@@ -671,12 +750,7 @@ export default function ManageScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryRow}
         >
-          <CategoryChip
-            label="TODOS"
-            active={activeCategory === "ALL"}
-            color={T.accentGold}
-            onPress={() => setActiveCategory("ALL")}
-          />
+          <CategoryChip label="TODOS" active={activeCategory === 'ALL'} color={T.accentGold} onPress={() => setActiveCategory('ALL')} />
           {categories.map((cat) => (
             <CategoryChip
               key={cat}
@@ -696,8 +770,7 @@ export default function ManageScreen() {
             <Ionicons name="cube-outline" size={28} color={T.textMuted} />
             <Text style={styles.stateText}>SIN RECURSOS EMPAREJADOS</Text>
             <Text style={styles.stateSubText}>
-              Solo aparecen recursos presentes en inventario y almacén
-              simultáneamente.
+              Solo aparecen recursos presentes en inventario y almacén simultáneamente.
             </Text>
           </View>
         ) : (
@@ -724,46 +797,41 @@ export default function ManageScreen() {
 // ── Estilos ──────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: T.bg },
+  root:          { flex: 1, backgroundColor: T.bg },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 24 },
 
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: T.border,
   },
-  backBtn: { width: 32, height: 32, justifyContent: "center" },
+  backBtn: { width: 32, height: 32, justifyContent: 'center' },
   title: {
-    fontFamily: "BarlowCondensed-700",
+    fontFamily: 'BarlowCondensed-700',
     fontSize: 22,
     letterSpacing: 4,
     color: T.textPrimary,
-    textAlign: "center",
+    textAlign: 'center',
     lineHeight: 24,
   },
   subtitle: {
-    fontFamily: "ShareTechMono",
+    fontFamily: 'ShareTechMono',
     fontSize: 9,
     letterSpacing: 2,
     color: T.textSecondary,
-    textAlign: "center",
+    textAlign: 'center',
     marginTop: 2,
   },
 
-  categoryRow: {
-    paddingTop: 14,
-    paddingBottom: 10,
-    gap: 8,
-    flexDirection: "row",
-  },
+  categoryRow:      { paddingTop: 14, paddingBottom: 10, gap: 8, flexDirection: 'row' },
   categoryChip: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 2,
@@ -771,22 +839,11 @@ const styles = StyleSheet.create({
     borderColor: T.border,
     gap: 5,
   },
-  chipDot: { width: 5, height: 5, borderRadius: 3 },
-  categoryChipText: {
-    fontFamily: "ShareTechMono",
-    fontSize: 9,
-    letterSpacing: 1.5,
-    color: T.textMuted,
-  },
+  chipDot:          { width: 5, height: 5, borderRadius: 3 },
+  categoryChipText: { fontFamily: 'ShareTechMono', fontSize: 9, letterSpacing: 1.5, color: T.textMuted },
 
-  divider: { height: 1, backgroundColor: T.border, marginBottom: 14 },
-  sectionLabel: {
-    fontFamily: "ShareTechMono",
-    fontSize: 9,
-    letterSpacing: 2,
-    color: T.textMuted,
-    marginBottom: 10,
-  },
+  divider:      { height: 1, backgroundColor: T.border, marginBottom: 14 },
+  sectionLabel: { fontFamily: 'ShareTechMono', fontSize: 9, letterSpacing: 2, color: T.textMuted, marginBottom: 10 },
 
   list: { gap: 6 },
 
@@ -794,129 +851,88 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: T.border,
     borderRadius: 3,
-    overflow: "hidden",
+    overflow: 'hidden',
     backgroundColor: T.bg,
   },
-  accordionRow: { flexDirection: "row", alignItems: "center" },
-  rowAccent: { width: 3, alignSelf: "stretch" },
-  rowContent: { flex: 1, paddingVertical: 11, paddingLeft: 12 },
-  rowName: {
-    fontFamily: "BarlowCondensed-700",
-    fontSize: 14,
-    letterSpacing: 1.5,
-    color: T.textPrimary,
-  },
-  rowCategory: {
-    fontFamily: "ShareTechMono",
-    fontSize: 8,
-    letterSpacing: 1,
-    color: T.textMuted,
-    marginTop: 2,
-  },
-  rowAmounts: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingRight: 8,
-    gap: 6,
-  },
-  amountCol: { alignItems: "center", minWidth: 34 },
-  amountColLabel: {
-    fontFamily: "ShareTechMono",
-    fontSize: 7,
-    letterSpacing: 1,
-    color: T.textMuted,
-  },
-  amountColValue: {
-    fontFamily: "BarlowCondensed-700",
-    fontSize: 15,
-    color: T.textPrimary,
-    letterSpacing: 0.5,
-  },
+  accordionRow:     { flexDirection: 'row', alignItems: 'center' },
+  rowAccent:        { width: 3, alignSelf: 'stretch' },
+  rowContent:       { flex: 1, paddingVertical: 11, paddingLeft: 12 },
+  rowName:          { fontFamily: 'BarlowCondensed-700', fontSize: 14, letterSpacing: 1.5, color: T.textPrimary },
+  rowCategory:      { fontFamily: 'ShareTechMono', fontSize: 8, letterSpacing: 1, color: T.textMuted, marginTop: 2 },
+  rowAmounts:       { flexDirection: 'row', alignItems: 'center', paddingRight: 8, gap: 6 },
+  amountCol:        { alignItems: 'center', minWidth: 34 },
+  amountColLabel:   { fontFamily: 'ShareTechMono', fontSize: 7, letterSpacing: 1, color: T.textMuted },
+  amountColValue:   { fontFamily: 'BarlowCondensed-700', fontSize: 15, color: T.textPrimary, letterSpacing: 0.5 },
   amountColDivider: { width: 1, height: 22, backgroundColor: T.border },
-  amountColUnit: {
-    fontFamily: "ShareTechMono",
-    fontSize: 7,
+  amountColUnit:    { fontFamily: 'ShareTechMono', fontSize: 7, color: T.textMuted, letterSpacing: 0.5, marginLeft: 2 },
+
+  panel:      { overflow: 'hidden' },
+  panelInner: { padding: 14, borderTopWidth: 1, borderTopColor: T.border, gap: 10 },
+
+  // ── Tabs ──
+  tabRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
+    marginBottom: 2,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabText: {
+    fontFamily: 'ShareTechMono',
+    fontSize: 9,
+    letterSpacing: 2,
     color: T.textMuted,
-    letterSpacing: 0.5,
-    marginLeft: 2,
   },
 
-  panel: { overflow: "hidden" },
-  panelInner: {
-    padding: 14,
-    borderTopWidth: 1,
-    borderTopColor: T.border,
-    gap: 10,
-  },
-
-  balancesRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  balancesRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   balanceBox: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: T.border,
     borderRadius: 3,
     paddingVertical: 10,
     paddingHorizontal: 6,
   },
-  balanceLabel: {
-    fontFamily: "ShareTechMono",
-    fontSize: 7,
-    letterSpacing: 2,
-    color: T.textMuted,
-    marginBottom: 4,
-  },
-  balanceAmount: {
-    fontFamily: "BarlowCondensed-700",
-    fontSize: 22,
-    color: T.textPrimary,
-    letterSpacing: 1,
-    lineHeight: 24,
-  },
-  balanceUnit: {
-    fontFamily: "ShareTechMono",
-    fontSize: 7,
-    color: T.textMuted,
-    letterSpacing: 1,
-    marginTop: 2,
-  },
-  arrowBtn: { alignItems: "center", gap: 4 },
+  balanceLabel:  { fontFamily: 'ShareTechMono', fontSize: 7, letterSpacing: 2, color: T.textMuted, marginBottom: 4 },
+  balanceAmount: { fontFamily: 'BarlowCondensed-700', fontSize: 22, color: T.textPrimary, letterSpacing: 1, lineHeight: 24 },
+  balanceUnit:   { fontFamily: 'ShareTechMono', fontSize: 7, color: T.textMuted, letterSpacing: 1, marginTop: 2 },
+  arrowBtn:      { alignItems: 'center', gap: 4 },
   arrowCircle: {
     width: 34,
     height: 34,
     borderRadius: 17,
     borderWidth: 1,
     borderColor: T.accentGold,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: T.accentGold + "14",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: T.accentGold + '14',
   },
-  arrowLabel: {
-    fontFamily: "ShareTechMono",
-    fontSize: 7,
-    letterSpacing: 1,
-    color: T.accentGold,
-  },
+  arrowLabel: { fontFamily: 'ShareTechMono', fontSize: 7, letterSpacing: 1, color: T.accentGold },
 
-  quickRow: { flexDirection: "row", gap: 6 },
+  quickRow: { flexDirection: 'row', gap: 6 },
   quickBtn: {
     flex: 1,
     paddingVertical: 6,
     borderWidth: 1,
     borderColor: T.border,
     borderRadius: 2,
-    alignItems: "center",
+    alignItems: 'center',
   },
-  quickBtnText: {
-    fontFamily: "ShareTechMono",
-    fontSize: 9,
-    letterSpacing: 1,
-    color: T.textSecondary,
-  },
+  quickBtnText: { fontFamily: 'ShareTechMono', fontSize: 9, letterSpacing: 1, color: T.textSecondary },
 
   inputWrap: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: T.border,
     borderRadius: 3,
@@ -926,79 +942,31 @@ const styles = StyleSheet.create({
   inputWrapError: { borderColor: T.statusCritical },
   amountInput: {
     flex: 1,
-    fontFamily: "BarlowCondensed-700",
+    fontFamily: 'BarlowCondensed-700',
     fontSize: 26,
     color: T.textPrimary,
     letterSpacing: 2,
     padding: 0,
   },
-  inputUnit: {
-    fontFamily: "ShareTechMono",
-    fontSize: 10,
-    color: T.textMuted,
-    letterSpacing: 1,
-  },
-  errorText: {
-    fontFamily: "ShareTechMono",
-    fontSize: 9,
-    color: T.statusCritical,
-    letterSpacing: 1,
-  },
-  availableText: {
-    fontFamily: "ShareTechMono",
-    fontSize: 9,
-    color: T.textMuted,
-    letterSpacing: 1,
-  },
+  inputUnit:     { fontFamily: 'ShareTechMono', fontSize: 10, color: T.textMuted, letterSpacing: 1 },
+  errorText:     { fontFamily: 'ShareTechMono', fontSize: 9, color: T.statusCritical, letterSpacing: 1 },
+  availableText: { fontFamily: 'ShareTechMono', fontSize: 9, color: T.textMuted, letterSpacing: 1 },
 
   confirmBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 13,
     borderRadius: 3,
     gap: 7,
     marginTop: 2,
   },
-  confirmText: {
-    fontFamily: "BarlowCondensed-700",
-    fontSize: 12,
-    letterSpacing: 3,
-  },
+  confirmText: { fontFamily: 'BarlowCondensed-700', fontSize: 12, letterSpacing: 3 },
 
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 32,
-  },
-  stateText: {
-    fontFamily: "BarlowCondensed-700",
-    fontSize: 13,
-    letterSpacing: 3,
-    color: T.textSecondary,
-    textAlign: "center",
-  },
-  stateSubText: {
-    fontFamily: "ShareTechMono",
-    fontSize: 10,
-    color: T.textMuted,
-    textAlign: "center",
-    lineHeight: 16,
-  },
-  retryBtn: {
-    marginTop: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: T.accentGold,
-  },
-  retryText: {
-    fontFamily: "ShareTechMono",
-    fontSize: 10,
-    letterSpacing: 2,
-    color: T.accentGold,
-  },
-  emptyState: { alignItems: "center", paddingVertical: 32, gap: 10 },
+  center:       { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12, paddingHorizontal: 32 },
+  stateText:    { fontFamily: 'BarlowCondensed-700', fontSize: 13, letterSpacing: 3, color: T.textSecondary, textAlign: 'center' },
+  stateSubText: { fontFamily: 'ShareTechMono', fontSize: 10, color: T.textMuted, textAlign: 'center', lineHeight: 16 },
+  retryBtn:     { marginTop: 8, paddingHorizontal: 20, paddingVertical: 8, borderWidth: 1, borderColor: T.accentGold },
+  retryText:    { fontFamily: 'ShareTechMono', fontSize: 10, letterSpacing: 2, color: T.accentGold },
+  emptyState:   { alignItems: 'center', paddingVertical: 32, gap: 10 },
 });

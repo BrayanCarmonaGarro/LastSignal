@@ -36,6 +36,8 @@ import type { InventoryResourceFull } from "@/types/trip_pack.types";
 
 import { TripPackHUD } from "@/components/trips/TripPackHUD";
 
+import { usersApi } from "@/services/api/users.api";
+
 // ─── CONSTANTES ───────────────────────────────────────
 const COLLECT_RADIUS_METERS = 300;
 const COLLECT_RANGE_CIRCLE_SIZE = 160; // diámetro visual en pantalla (px)
@@ -331,6 +333,11 @@ export default function ActiveTripScreen() {
 
           // 3. Recolectar el drop
           collectDrop(d.id);
+
+          const xpByTier: Record<number, number> = { 1: 50, 2: 100 };
+          const xp =
+            d.items.length >= 3 ? 200 : (xpByTier[d.items.length] ?? 50);
+          usersApi.addXp(xp).catch(() => {}); // fire and forget
         },
       });
     },
