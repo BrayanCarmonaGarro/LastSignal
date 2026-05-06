@@ -5,20 +5,21 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { CameraView } from 'expo-camera';
 import { useRouter } from 'expo-router';
-import * as MediaLibrary from 'expo-media-library';
-import * as ImageManipulator from 'expo-image-manipulator';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/theme';
 import { makeStyles } from '@/styles/captureStyles';
 import { StarField } from '@/components/ui/StarField';
 import { useCamera } from '@/hooks/useCamera';
+import { useNetworkStatus } from '@/hooks/network/useNetworkStatus';
 import { storageApi } from '@/services/api/storage.api';
 import { aiApi, type AIResponse } from '@/services/api/ai.api';
 import { logbookApi } from '@/services/api/logbook.api';
+import { photoQueue } from '@/services/offline/queue';
+import { useToast } from '@/context/ToastContext';
 import { CLASSIFICATION_LABELS, DANGER_LABELS } from '@/constants/labels';
 
 export default function CaptureScreen() {
@@ -33,6 +34,9 @@ export default function CaptureScreen() {
     lastPhoto,
     setLastPhoto,
   } = useCamera();
+
+  const { isConnected } = useNetworkStatus();
+  const { showToast } = useToast();
 
   const [facing,           setFacing]           = useState<'front' | 'back'>('back');
   const [flashMode,        setFlashMode]        = useState<'on' | 'off' | 'auto'>('off');
@@ -57,34 +61,19 @@ export default function CaptureScreen() {
   const clearPhoto   = () => setLastPhoto(null);
   const clearAll     = () => { setAiResult(null); clearPhoto(); };
 
-  const saveToGallery = async (uri: string) => {
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status === 'granted') {
-        await MediaLibrary.saveToLibraryAsync(uri);
-        Alert.alert('¡Éxito!', 'Foto guardada en la galería.');
-      } else {
-        setError('Necesitamos permisos para guardar en la galería.');
-      }
-    } catch {
-      setError('Error al guardar la imagen.');
-    }
-  };
-
   const handleCreateLogbook = async () => {
     if (!lastPhoto) return;
     setIsProcessing(true);
     try {
       setProcessingStatus('Preparando imagen...');
-      const manipResult = await ImageManipulator.manipulateAsync(
-        lastPhoto.uri,
-        [{ resize: { width: 512 } }],
-        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG, base64: true },
-      );
-      if (!manipResult.base64) throw new Error('Error procesando imagen');
+      const ref = await ImageManipulator.manipulate(lastPhoto.uri)
+        .resize({ width: 512 })
+        .renderAsync();
+      const compressed = await ref.saveAsync({ compress: 0.4, format: SaveFormat.JPEG, base64: true });
+      if (!compressed.base64) throw new Error('Error procesando imagen');
 
       setProcessingStatus('Subiendo imagen...');
-      const upload = await storageApi.uploadImage(manipResult.base64);
+      const upload = await storageApi.uploadImage(compressed.base64);
 
       setProcessingStatus('Analizando con IA...');
       const aiData = await aiApi.analyzeImage(upload.url_acceso);
@@ -99,7 +88,28 @@ export default function CaptureScreen() {
 
       setAiResult(aiData);
     } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'Error desconocido');
+      showToast(err instanceof Error ? err.message : 'Error desconocido', 'error');
+    } finally {
+      setIsProcessing(false);
+      setProcessingStatus('');
+    }
+  };
+
+  const handleSaveOffline = async () => {
+    if (!lastPhoto) return;
+    setIsProcessing(true);
+    setProcessingStatus('Comprimiendo imagen...');
+    try {
+      const ref = await ImageManipulator.manipulate(lastPhoto.uri)
+        .resize({ width: 512 })
+        .renderAsync();
+      const manipResult = await ref.saveAsync({ compress: 0.4, format: SaveFormat.JPEG, base64: true });
+      if (!manipResult.base64) throw new Error('Error procesando imagen');
+      await photoQueue.enqueue(lastPhoto.uri, manipResult.base64);
+      showToast('Foto en cola. Se procesará al reconectarte.', 'info');
+      router.back();
+    } catch {
+      showToast('No se pudo guardar la foto offline.', 'error');
     } finally {
       setIsProcessing(false);
       setProcessingStatus('');
@@ -191,16 +201,19 @@ export default function CaptureScreen() {
         <View style={s.previewControls}>
           <StarField />
           <View style={s.row}>
-            <TouchableOpacity style={[s.btn, s.btnGray]} onPress={() => saveToGallery(lastPhoto.uri)}>
-              <Text style={s.btnText}>Guardar</Text>
-            </TouchableOpacity>
             <TouchableOpacity style={[s.btn, s.btnRed]} onPress={clearPhoto}>
               <Text style={s.btnTextNeutral}>Nueva Foto</Text>
             </TouchableOpacity>
           </View>
-          <TouchableOpacity style={[s.btn, s.btnBlue]} onPress={handleCreateLogbook} disabled={isProcessing}>
-            <Text style={s.btnTextLg}>Crear Logbook con IA</Text>
-          </TouchableOpacity>
+          {isConnected !== false ? (
+            <TouchableOpacity style={[s.btn, s.btnBlue]} onPress={handleCreateLogbook} disabled={isProcessing}>
+              <Text style={s.btnTextLg}>Crear Logbook con IA</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={[s.btn, s.btnBlue]} onPress={handleSaveOffline} disabled={isProcessing}>
+              <Text style={s.btnTextLg}>Guardar offline</Text>
+            </TouchableOpacity>
+          )}
           {error ? <Text style={s.error}>{error}</Text> : null}
         </View>
       </View>
