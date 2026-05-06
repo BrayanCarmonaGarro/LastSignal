@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuthStore } from "@/store/authStore";
 import { useAuthNavigation } from "@/hooks/useAuthNavigation";
 import { NetworkBanner } from "@/components/network/NetworkBanner";
+import { ToastProvider } from "@/context/ToastContext";
 
 export default function RootLayout() {
   const { loadSession } = useAuthStore();
@@ -28,8 +29,10 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }} />
-        <NetworkBanner />
+        <ToastProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+          <NetworkBanner />
+        </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet, View } from 'react-native';
+import { Animated, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '@/constants/theme';
 import { useNetworkStatus } from '@/hooks/network/useNetworkStatus';
 
 export function NetworkBanner() {
+  const { colors, fonts, fontSizes, spacing, radii, borderWidths, iconSizes } = useTheme();
   const { isConnected, wasOffline } = useNetworkStatus();
   const translateY = useRef(new Animated.Value(-80)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -32,22 +35,47 @@ export function NetworkBanner() {
   }, [isConnected, wasOffline]);
 
   const isOffline = isConnected === false;
+  const accentColor = isOffline ? colors.primaryLight : colors.success;
 
   return (
     <Animated.View
       style={[
-        styles.container,
-        isOffline ? styles.offline : styles.online,
+        {
+          position: 'absolute',
+          top: 52,
+          left: spacing.lg,
+          right: spacing.lg,
+          zIndex: 999,
+          borderRadius: radii.xl,
+          borderWidth: borderWidths.base,
+          borderLeftWidth: borderWidths.accent,
+          borderColor: isOffline ? colors.borderDefault : colors.success,
+          borderLeftColor: accentColor,
+          backgroundColor: isOffline ? colors.bgTertiary : colors.successDim,
+          padding: spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          elevation: 6,
+        },
         { transform: [{ translateY }], opacity },
       ]}
       pointerEvents="none"
     >
-      <Text style={styles.icon}>{isOffline ? '📡' : '✅'}</Text>
-      <View>
-        <Text style={styles.title}>
+      <Ionicons
+        name={isOffline ? 'cloud-offline-outline' : 'checkmark-circle-outline'}
+        size={iconSizes.lg}
+        color={accentColor}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: fonts.heading, fontSize: fontSizes.body, color: colors.textPrimary }}>
           {isOffline ? 'Sin conexión' : '¡Conexión restaurada!'}
         </Text>
-        <Text style={styles.subtitle}>
+        <Text style={{ fontFamily: fonts.caption, fontSize: fontSizes.caption, color: colors.textSecondary, marginTop: 2 }}>
           {isOffline
             ? 'Los cambios se guardarán y sincronizarán al reconectarte.'
             : 'Todo está sincronizado.'}
@@ -56,28 +84,3 @@ export function NetworkBanner() {
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 52,
-    left: 16,
-    right: 16,
-    zIndex: 999,
-    borderRadius: 14,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  offline: { backgroundColor: '#1e1e2e' },
-  online:  { backgroundColor: '#166534' },
-  icon:    { fontSize: 24 },
-  title:   { color: '#fff', fontWeight: '700', fontSize: 14 },
-  subtitle:{ color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2 },
-});
