@@ -62,6 +62,33 @@ function selectResources(
   resources: BaseResource[],
   alreadyUsedIds: Set<string>
 ): BaseResource[] {
+  // Cantidad objetivo: 1 (LOW), 2 (MEDIUM) o 3 (HIGH)
+  const targetCount = weightedRarityCount();
+
+  const shuffled = [...resources].sort(() => Math.random() - 0.5);
+
+  const selected: BaseResource[] = [];
+  for (const resource of shuffled) {
+    if (selected.length >= targetCount) break;
+    if (selected.some((s) => s.category === resource.category)) continue;
+    selected.push(resource);
+  }
+  return selected;
+}
+
+// Distribución: 50% LOW · 30% MEDIUM · 20% HIGH
+function weightedRarityCount(): 1 | 2 | 3 {
+  const roll = Math.random();
+  if (roll < 0.5) return 1;
+  if (roll < 0.8) return 2;
+  return 3;
+}
+
+/*
+function selectResources(
+  resources: BaseResource[],
+  alreadyUsedIds: Set<string>
+): BaseResource[] {
   const selected: BaseResource[] = [];
   for (const resource of resources) {
     if (selected.length >= 3) break;
@@ -71,6 +98,7 @@ function selectResources(
   }
   return selected;
 }
+*/
 
 export async function ensureSupplyDrops(userLat: number, userLon: number): Promise<SupplyDrop[]> {
   let allDrops: SupplyDrop[];
