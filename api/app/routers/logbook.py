@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from app.services.rag_service import get_similar_entries, index_new_entry
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user, resolve_db_user
-from app.models.logbook import LogbookEntry, LifeFormSearch
+from app.models.logbook import LogbookEntry, LifeFormSearch, LifeFormCategory, DangerLevel
 from app.schemas.logbook import (
     LogbookEntryCreate,
     LogbookEntryResponse,
@@ -21,15 +21,22 @@ router = APIRouter(prefix="/logbook", tags=["Bitácora"])
 
 @router.get("", response_model=List[LogbookEntryResponse])
 async def list_entries(
-    skip: int = Query(0, ge=0),
+    page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    classification: Optional[LifeFormCategory] = Query(None),
+    danger: Optional[DangerLevel] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     user = await resolve_db_user(current_user, db)
+    skip = (page - 1) * limit
+    query = db.query(LogbookEntry).filter(LogbookEntry.user_id == user.id)
+    if classification:
+        query = query.filter(LogbookEntry.classification == classification)
+    if danger:
+        query = query.filter(LogbookEntry.danger_level == danger)
     return (
-        db.query(LogbookEntry)
-        .filter(LogbookEntry.user_id == user.id)
+        query
         .order_by(LogbookEntry.created_at.desc())
         .offset(skip)
         .limit(limit)
