@@ -8,6 +8,12 @@ import { useAuthStore } from "@/store/authStore";
 import { useAuthNavigation } from "@/hooks/useAuthNavigation";
 import { NetworkBanner } from "@/components/network/NetworkBanner";
 import { ToastProvider } from "@/context/ToastContext";
+import { useOfflineSync } from "@/hooks/offline/useOfflineSync";
+
+function OfflineSyncMount() {
+  useOfflineSync();
+  return null;
+}
 
 export default function RootLayout() {
   const { loadSession } = useAuthStore();
@@ -30,6 +36,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ToastProvider>
+          <OfflineSyncMount />
           <Stack screenOptions={{ headerShown: false }} />
           <NetworkBanner />
         </ToastProvider>

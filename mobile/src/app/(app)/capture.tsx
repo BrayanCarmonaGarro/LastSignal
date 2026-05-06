@@ -14,7 +14,7 @@ import { useTheme } from '@/constants/theme';
 import { makeStyles } from '@/styles/captureStyles';
 import { StarField } from '@/components/ui/StarField';
 import { useCamera } from '@/hooks/useCamera';
-import { useNetworkStatus } from '@/hooks/network/useNetworkStatus';
+import { useNetworkStatus } from '@/hooks/offline/useNetworkStatus';
 import { storageApi } from '@/services/api/storage.api';
 import { aiApi, type AIResponse } from '@/services/api/ai.api';
 import { logbookApi } from '@/services/api/logbook.api';

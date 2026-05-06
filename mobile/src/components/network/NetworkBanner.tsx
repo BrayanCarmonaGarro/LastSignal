@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, PanResponder, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/theme';
-import { useNetworkStatus } from '@/hooks/network/useNetworkStatus';
+import { useNetworkStatus } from '@/hooks/offline/useNetworkStatus';
 
 export function NetworkBanner() {
   const { colors, fonts, fontSizes, spacing, radii, borderWidths, iconSizes } = useTheme();
