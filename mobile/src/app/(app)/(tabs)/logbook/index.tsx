@@ -14,7 +14,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '@/constants/theme';
 import { CLASSIFICATION_LABELS } from '@/constants/labels';
 import { useLogbook } from '@/hooks/useLogbook';
-import { aiApi } from '@/services/api/ai.api'; 
+import { useNetworkStatus } from '@/hooks/offline/useNetworkStatus';
+import { useToast } from '@/context/ToastContext';
+import { aiApi } from '@/services/api/ai.api';
 import { LogbookCard } from '@/components/logbook/LogbookCard';
 import { LogbookSkeletonCard } from '@/components/logbook/LogbookSkeletonCard';
 import { LogbookEmptyState } from '@/components/logbook/LogbookEmptyState';
@@ -32,21 +34,33 @@ export default function LogbookScreen() {
     isLoading,
     isRefreshing,
     isLoadingMore,
-    isSearchingRAG,  
+    isSearchingRAG,
     error,
     isDownloadingAll,
     downloadAllDone,
+    downloadAllError,
+    cameFromCache,
     refresh,
     loadMore,
-    searchRAG,    
+    searchRAG,
     setFilter,
     downloadAll,
     deleteEntry,
   } = useLogbook();
 
+  const { isConnected } = useNetworkStatus();
+  const { showToast } = useToast();
+
   const [search, setSearch] = useState('');
   const [activeChip, setActiveChip] = useState<FilterKey>('ALL');
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  useEffect(() => {
+    if (downloadAllDone) showToast('Bitácora descargada para uso offline', 'success');
+  }, [downloadAllDone]);
+
+  useEffect(() => {
+    if (downloadAllError) showToast('Error al descargar la bitácora', 'error');
+  }, [downloadAllError]);
   const [actionEntry, setActionEntry] = useState<LogbookEntry | null>(null);
 
   const soundRef = useRef<Audio.Sound | null>(null);
@@ -232,9 +246,9 @@ export default function LogbookScreen() {
       </View>
 
       <View style={{ flex: 1, marginTop: 12 }}>
-      {(isLoading || isSearchingRAG) && !isRefreshing ? ( 
+      {(isLoading || isSearchingRAG) && !isRefreshing ? (
         <SkeletonList />
-      ) : error ? (
+      ) : error && isConnected !== false ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
           <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.body, color: colors.danger, textAlign: 'center' }}>
             {error}
@@ -254,6 +268,16 @@ export default function LogbookScreen() {
           refreshing={isRefreshing}
           onEndReached={() => { if (!search.trim()) loadMore(); }}
           onEndReachedThreshold={0.3}
+          ListHeaderComponent={
+            cameFromCache ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.sm }}>
+                <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+                <Text style={{ fontFamily: fonts.caption, fontSize: fontSizes.caption, color: colors.textMuted }}>
+                  Mostrando datos guardados
+                </Text>
+              </View>
+            ) : null
+          }
           ListFooterComponent={<ListFooter />}
           ListEmptyComponent={
             <LogbookEmptyState
