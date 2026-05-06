@@ -30,14 +30,17 @@ export default function LogbookScreen() {
     isLoading,
     isRefreshing,
     isLoadingMore,
+    isSearchingRAG,  
     error,
     isDownloadingAll,
     downloadAllDone,
     refresh,
     loadMore,
+    searchRAG,    
     setFilter,
     downloadAll,
     deleteEntry,
+    
   } = useLogbook();
 
   const [search,     setSearch]     = useState('');
@@ -60,6 +63,14 @@ export default function LogbookScreen() {
         (CLASSIFICATION_LABELS[e.classification] ?? '').toLowerCase().includes(q),
     );
   }, [entries, search]);
+
+  const handleSearchSubmit = () => {
+    if (search.trim()) {
+      searchRAG(search);
+    } else {
+      refresh();
+    }
+  };
 
   const handleLongPress = (entry: LogbookEntry) => {
     const options = ['Ver detalle', 'Escuchar audio', 'Descargar', 'Eliminar', 'Cancelar'];
@@ -115,6 +126,11 @@ export default function LogbookScreen() {
     </>
   );
 
+  const handleClearSearch = () => {
+    setSearch('');
+    refresh(); 
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       {/* Header */}
@@ -164,13 +180,19 @@ export default function LogbookScreen() {
 
       {/* Search + Filter chips */}
       <View style={{ marginTop: 8 }}>
-        <LogbookSearchBar value={search} onChangeText={setSearch} />
+        <LogbookSearchBar 
+          value={search}
+          onChangeText={setSearch}
+          onSubmit={handleSearchSubmit}
+          isLoading={isSearchingRAG} 
+          onClear={handleClearSearch}
+        />
         <LogbookFilterChips active={activeChip} onChange={handleChipChange} />
       </View>
 
       {/* List */}
       <View style={{ flex: 1, marginTop: 12 }}>
-      {isLoading && !isRefreshing ? (
+      {(isLoading || isSearchingRAG) && !isRefreshing ? ( 
         <SkeletonList />
       ) : error ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>

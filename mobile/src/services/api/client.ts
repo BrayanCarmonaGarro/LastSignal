@@ -2,7 +2,7 @@
 // Cliente HTTP centralizado con refresh automático del access token
 import { useAuthStore } from '@/store/authStore';
 
-const API_ORIGIN = process.env.EXPO_PUBLIC_API_URL ?? 'https://gigabyte-proofing-factoid.ngrok-free.dev';
+const API_ORIGIN = process.env.EXPO_PUBLIC_API_URL ?? 'https://gigabyte-proofing-factoid.ngrok-free.dev/api';
 const API_PREFIX = '/api/v1';
 
 export function buildFileUrl(relativePath: string): string {
@@ -32,6 +32,7 @@ function rejectQueue() {
 export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
+  returnBlob: boolean = false
 ): Promise<T> {
   const doFetch = (accessToken: string | null) =>
     fetch(`${API_ORIGIN}${API_PREFIX}${path}`, {
@@ -71,6 +72,10 @@ export async function apiRequest<T>(
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.detail ?? `HTTP ${res.status}`);
+  }
+
+  if (returnBlob) {
+    return res.blob() as Promise<T>;
   }
 
   return res.json() as Promise<T>;

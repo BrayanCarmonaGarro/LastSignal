@@ -1,5 +1,6 @@
 from typing import List
 from uuid import UUID
+from app.services.rag_service import get_similar_entries, index_new_entry
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -46,6 +47,8 @@ async def create_entry(
 
     ai_result = await classify_life_form(entry.photo_url, entry.description)
 
+    similar_records = get_similar_entries(entry.description)
+
     db_entry = LogbookEntry(
         photo_url=entry.photo_url,
         description=entry.description,
@@ -59,9 +62,17 @@ async def create_entry(
     db.commit()
     db.refresh(db_entry)
 
+    index_new_entry(
+        text=db_entry.description, 
+        metadata={"id": str(db_entry.id), "user_id": str(user.id)}
+    )
+
     check_and_award_achievements(str(user.id), db)
 
-    return db_entry
+    response_data = db_entry.__dict__
+    response_data["similar_findings"] = similar_records
+
+    return response_data
 
 
 @router.get("/{entry_id}", response_model=LogbookEntryResponse)

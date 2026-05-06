@@ -31,6 +31,7 @@ interface LogbookState {
   isLoading: boolean;
   isRefreshing: boolean;
   isLoadingMore: boolean;
+  isSearchingRAG: boolean; // NUEVO
   error: string | null;
   page: number;
   hasMore: boolean;
@@ -41,10 +42,12 @@ interface LogbookState {
   fetch:        (reset?: boolean)        => Promise<void>;
   refresh:      ()                       => Promise<void>;
   loadMore:     ()                       => Promise<void>;
+  searchRAG:    (query: string)          => Promise<void>; // NUEVO
   setFilter:    (f: LogbookFilter)       => void;
   downloadAll:  ()                       => Promise<void>;
   deleteEntry:  (id: string)             => Promise<void>;
   clear:        ()                       => void;
+  clearSearch: ()                       => void; // NUEVO
 }
 
 export const useLogbookStore = create<LogbookState>((set, get) => ({
@@ -52,6 +55,7 @@ export const useLogbookStore = create<LogbookState>((set, get) => ({
   isLoading:         false,
   isRefreshing:      false,
   isLoadingMore:     false,
+  isSearchingRAG:    false, // NUEVO
   error:             null,
   page:              1,
   hasMore:           true,
@@ -107,6 +111,17 @@ export const useLogbookStore = create<LogbookState>((set, get) => ({
     }
   },
 
+  searchRAG: async (query: string) => {
+    if (!query.trim()) return;
+    set({ isSearchingRAG: true, error: null });
+    try {
+      const items = await logbookApi.searchRAG(query); 
+      set({ entries: items, hasMore: false, isSearchingRAG: false });
+    } catch (e: any) {
+      set({ isSearchingRAG: false, error: e.message || 'Error en búsqueda IA' });
+    }
+  },
+
   setFilter: (filter) => {
     set({ filter });
     get().fetch(true);
@@ -129,9 +144,12 @@ export const useLogbookStore = create<LogbookState>((set, get) => ({
     try {
       await logbookApi.delete(id);
     } catch {
-      // si falla el server, recargamos para restaurar estado real
       get().fetch(true);
     }
+  },
+
+  clearSearch: () => {
+      set({ isSearchingRAG: false });
   },
 
   clear: () =>

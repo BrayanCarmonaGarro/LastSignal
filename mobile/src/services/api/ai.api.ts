@@ -1,4 +1,3 @@
-// mobile/src/services/api/ai.api.ts
 import { apiRequest } from './client';
 
 export interface AIResponse {
@@ -11,8 +10,14 @@ export interface AIResponse {
 
 export const aiApi = {
   analyzeImage: (photo_url: string): Promise<AIResponse> =>
-    apiRequest<AIResponse>('/classification/', {
+    apiRequest<AIResponse>('/classification/classify', {
       method: 'POST',
       body: JSON.stringify({ photo_url }),
     }),
+  generateAudio: async (text: string): Promise<any> => {
+    return apiRequest<AIResponse>('/classification/generate-audio', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }, true);
+  },
 };

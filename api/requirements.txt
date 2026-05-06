@@ -8,3 +8,7 @@ python-jose[cryptography]
 httpx
 pydantic
 google-genai
+langchain-google-genai 
+langchain-community 
+pgvector 
+psycopg2-binary

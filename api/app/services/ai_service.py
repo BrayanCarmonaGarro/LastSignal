@@ -47,8 +47,7 @@ async def classify_life_form(
 
     try:
         async with httpx.AsyncClient() as client:
-            # Endpoint de Gemini 1.5 Flash (ideal para tareas rápidas multimodales y JSON)
-            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.ai_api_key}"
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={settings.ai_api_key}"
             
             payload = {
                 "contents": [{
