@@ -180,7 +180,7 @@ export default function LogbookDetailScreen() {
           {},
         ]}
       >
-        <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.micro, color: s.color, textTransform: 'uppercase', letterSpacing: 0.8 }}>
+        <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.caption, color: s.color, textTransform: 'uppercase', letterSpacing: 0.8 }}>
           {s.label}
         </Text>
       </Animated.View>
@@ -271,7 +271,7 @@ export default function LogbookDetailScreen() {
               marginBottom: spacing.xs,
             }}
           >
-            FORMA DE VIDA · {entry.classification}
+            FORMA DE VIDA · {classLabel}
           </Text>
 
           <Text
@@ -288,23 +288,32 @@ export default function LogbookDetailScreen() {
           </Text>
 
           {/* Badges row */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
-            <ClassificationBadge classification={entry.classification} />
-            <View
-              style={{
-                borderRadius: radii.full,
-                borderWidth: 1,
-                borderColor: `${dColors.border}66`,
-                backgroundColor: `${dColors.bg}`,
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 2,
-              }}
-            >
-              <Text style={{ fontFamily: fonts.heading, fontSize: 11, color: dColors.text, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                {dangerLabel}
-              </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginBottom: spacing.sm, alignItems: 'flex-end' }}>
+            <View style={{ gap: 3 }}>
+              <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.micro, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>Tipo</Text>
+              <ClassificationBadge classification={entry.classification} />
             </View>
-            {syncBadge()}
+            <View style={{ gap: 3 }}>
+              <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.micro, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>Peligro</Text>
+              <View
+                style={{
+                  borderRadius: radii.full,
+                  borderWidth: 1,
+                  borderColor: `${dColors.border}66`,
+                  backgroundColor: `${dColors.bg}`,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 2,
+                }}
+              >
+                <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.caption, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  {dangerLabel}
+                </Text>
+              </View>
+            </View>
+            <View style={{ gap: 3 }}>
+              <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.micro, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>Sync</Text>
+              {syncBadge()}
+            </View>
           </View>
 
           <Text
