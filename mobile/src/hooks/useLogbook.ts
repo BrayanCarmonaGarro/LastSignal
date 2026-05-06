@@ -8,7 +8,7 @@ export function useLogbook() {
     isLoading,
     isRefreshing,
     isLoadingMore,
-    isSearchingRAG, // NUEVO
+    isSearchingRAG,
     error,
     hasMore,
     filter,
@@ -18,7 +18,7 @@ export function useLogbook() {
     clearSearch,
     refresh,
     loadMore,
-    searchRAG,    // NUEVO
+    searchRAG,   
     setFilter,
     downloadAll,
     deleteEntry,
@@ -34,7 +34,7 @@ export function useLogbook() {
     isLoading,
     isRefreshing,
     isLoadingMore,
-    isSearchingRAG, // NUEVO
+    isSearchingRAG, 
     error,
     hasMore,
     filter,
@@ -42,7 +42,7 @@ export function useLogbook() {
     downloadAllDone,
     refresh,
     loadMore,
-    searchRAG,    // NUEVO
+    searchRAG,  
     setFilter,
     downloadAll,
     deleteEntry,

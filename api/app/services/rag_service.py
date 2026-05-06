@@ -1,4 +1,3 @@
-# app/services/rag_service.py
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import PGVector
 from app.core.config import settings
