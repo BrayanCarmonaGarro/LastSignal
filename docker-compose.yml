@@ -3,7 +3,7 @@ services:
   # PostgreSQL
   # ─────────────────────────────────────────
   db:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: lastsignal_db
     restart: unless-stopped
     environment:
