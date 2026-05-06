@@ -42,5 +42,5 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     }
   },
 
-  clear: () => set({ data: null, error: null, lastFetchedAt: null }),
+  clear: () => set({ data: null, error: null, lastFetchedAt: null, isLoading: false, isRefreshing: false }),
 }));

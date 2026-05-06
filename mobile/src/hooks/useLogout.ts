@@ -1,6 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { useTripStore } from '@/store/tripStore';
+import { useResourceStore } from '@/store/resourceStore';
+import { useLogbookStore } from '@/store/logbookStore';
+import { useDashboardStore } from '@/store/dashboardStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export function useLogout() {
@@ -21,6 +24,11 @@ export function useLogout() {
 
     // Limpiar AsyncStorage para que no rehidrate datos del usuario anterior
     await AsyncStorage.removeItem('last-signal-trip-store');
+
+    // Limpiar stores con datos de usuario para que no persistan al cambiar de sesión
+    useDashboardStore.getState().clear();
+    useResourceStore.getState().clear();
+    useLogbookStore.getState().clear();
 
     await clearSession();
     router.replace('/(auth)/login');

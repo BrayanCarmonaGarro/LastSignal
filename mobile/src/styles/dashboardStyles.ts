@@ -17,7 +17,7 @@ export const makeStyles = ({
     },
     scrollContent: {
       paddingHorizontal: layout.screenPaddingH,
-      paddingTop: layout.screenPaddingV,
+      paddingTop: layout.screenPaddingH,
       paddingBottom: layout.tabBarHeight + layout.screenPaddingV,
     },
     header: {
