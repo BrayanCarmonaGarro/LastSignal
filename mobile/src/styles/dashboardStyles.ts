@@ -21,16 +21,13 @@ export const makeStyles = ({
       paddingBottom: layout.tabBarHeight + layout.screenPaddingV,
     },
     header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
+      flexDirection: "column",
       marginBottom: spacing.lg,
     },
     profileChip: {
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
-      flexShrink: 1,
     },
     avatarImage: {
       width: 40,
@@ -101,27 +98,6 @@ export const makeStyles = ({
       fontSize: fontSizes.micro,
       color: colors.textMuted,
       letterSpacing: 0.5,
-    },
-    levelChip: {
-      backgroundColor: colors.bgSecondary,
-      borderRadius: radii.md,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-      alignItems: "center",
-      marginLeft: spacing.sm,
-    },
-    levelLabel: {
-      fontFamily: fonts.mono,
-      fontSize: fontSizes.micro,
-      color: colors.textMuted,
-      textTransform: "uppercase",
-      letterSpacing: 1,
-    },
-    levelValue: {
-      fontFamily: fonts.mono,
-      fontSize: fontSizes.dataLg,
-      color: colors.primary,
-      lineHeight: fontSizes.dataLg * 1.1,
     },
     metricsRow: {
       flexDirection: "row",

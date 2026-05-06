@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/theme';
@@ -24,7 +23,6 @@ import type { LogbookEntry } from '@/types/logbook.types';
 
 export default function LogbookScreen() {
   const { colors, fonts, fontSizes, spacing } = useTheme();
-  const insets  = useSafeAreaInsets();
   const router  = useRouter();
 
   const {
@@ -118,7 +116,7 @@ export default function LogbookScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bgPrimary, paddingTop: insets.top }}>
+    <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       {/* Header */}
       <View
         style={{
