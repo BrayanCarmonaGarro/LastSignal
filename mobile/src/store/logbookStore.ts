@@ -31,7 +31,7 @@ interface LogbookState {
   isLoading: boolean;
   isRefreshing: boolean;
   isLoadingMore: boolean;
-  isSearchingRAG: boolean; // NUEVO
+  isSearchingRAG: boolean; 
   error: string | null;
   page: number;
   hasMore: boolean;
@@ -42,12 +42,12 @@ interface LogbookState {
   fetch:        (reset?: boolean)        => Promise<void>;
   refresh:      ()                       => Promise<void>;
   loadMore:     ()                       => Promise<void>;
-  searchRAG:    (query: string)          => Promise<void>; // NUEVO
+  searchRAG:    (query: string)          => Promise<void>; 
   setFilter:    (f: LogbookFilter)       => void;
   downloadAll:  ()                       => Promise<void>;
   deleteEntry:  (id: string)             => Promise<void>;
   clear:        ()                       => void;
-  clearSearch: ()                       => void; // NUEVO
+  clearSearch: ()                       => void; 
 }
 
 export const useLogbookStore = create<LogbookState>((set, get) => ({
@@ -55,7 +55,7 @@ export const useLogbookStore = create<LogbookState>((set, get) => ({
   isLoading:         false,
   isRefreshing:      false,
   isLoadingMore:     false,
-  isSearchingRAG:    false, // NUEVO
+  isSearchingRAG:    false, 
   error:             null,
   page:              1,
   hasMore:           true,
