@@ -2,6 +2,8 @@
 from pydantic_settings import BaseSettings
 
 
+UPLOAD_DIR = "imagenes_guardadas"
+
 class Settings(BaseSettings):
     database_url: str
     keycloak_url: str

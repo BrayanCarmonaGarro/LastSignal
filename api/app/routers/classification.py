@@ -58,7 +58,7 @@ async def endpoint_analizar_forma_vida(req: AIAnalyzeRequest):
         Tareas:
         1. Genera una descripción corta y creativa (1-2 oraciones).
         2. Clasifícalo como uno de: ANIMAL, PLANT, RESOURCE, MINERAL, FUNGI, UNKNOWN_ORGANISM
-        3. Determina el nivel de peligro: DANGEROUS, FRIENDLY, UNKNOWN
+        3. Determina el nivel de peligro: DANGEROUS o FRIENDLY basado en la especie y características.
         4. Proporciona una confianza del 0.0 al 1.0
 
         IMPORTANTE: Los campos "description" y "reasoning" deben estar escritos en español.
@@ -80,6 +80,7 @@ async def endpoint_analizar_forma_vida(req: AIAnalyzeRequest):
             ],
         )
 
+        print(limpiar_json(result.text))
         try:
             return json.loads(limpiar_json(result.text))
         except json.JSONDecodeError:

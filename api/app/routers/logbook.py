@@ -52,8 +52,8 @@ async def create_entry(
     db_entry = LogbookEntry(
         photo_url=entry.photo_url,
         description=entry.description,
-        classification=ai_result.classification if ai_result else entry.classification,
-        danger_level=ai_result.danger_level if ai_result else entry.danger_level,
+        classification=entry.classification,
+        danger_level=entry.danger_level,
         ai_confidence=ai_result.confidence if ai_result else None,
         ai_raw_response=ai_result.raw_response if ai_result else None,
         user_id=user.id,
@@ -69,11 +69,9 @@ async def create_entry(
 
     check_and_award_achievements(str(user.id), db)
 
-    response_data = db_entry.__dict__
-    response_data["similar_findings"] = similar_records
-
-    return response_data
-
+    data = LogbookEntryResponse.model_validate(db_entry, from_attributes=True)
+    data.similar_findings = similar_records
+    return data
 
 @router.get("/{entry_id}", response_model=LogbookEntryResponse)
 async def get_entry(
