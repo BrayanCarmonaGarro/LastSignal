@@ -60,7 +60,7 @@ export function LogbookRecentRow({ entry, onPress }: LogbookRecentRowProps) {
               style={{
                 fontFamily: fonts.caption,
                 fontSize: fontSizes.micro,
-                color: classColors.text,
+                color: '#FFFFFF',
                 textTransform: 'uppercase',
                 letterSpacing: 0.8,
               }}

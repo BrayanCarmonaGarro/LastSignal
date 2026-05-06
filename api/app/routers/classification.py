@@ -36,14 +36,17 @@ async def endpoint_analizar_forma_vida(req: AIAnalyzeRequest):
 
     try:
         prompt = """
-        Act as an expert xenobiologist. Analyze this life form discovery on an unknown planet.
-        Tasks:
-        1. Generate a short, creative description (1-2 sentences).
-        2. Classify it as one of: ANIMAL, PLANT, RESOURCE, MINERAL, FUNGI, UNKNOWN_ORGANISM
-        3. Determine danger level: DANGEROUS, FRIENDLY, UNKNOWN
-        4. Provide confidence from 0.0 to 1.0
+        Actúa como un xenobiólogo experto. Analiza este descubrimiento de forma de vida en un planeta desconocido.
+        Tareas:
+        1. Genera una descripción corta y creativa (1-2 oraciones).
+        2. Clasifícalo como uno de: ANIMAL, PLANT, RESOURCE, MINERAL, FUNGI, UNKNOWN_ORGANISM
+        3. Determina el nivel de peligro: DANGEROUS, FRIENDLY, UNKNOWN
+        4. Proporciona una confianza del 0.0 al 1.0
 
-        Respond ONLY with this exact JSON structure:
+        IMPORTANTE: Los campos "description" y "reasoning" deben estar escritos en español.
+        Los campos "classification" y "danger_level" deben usar exactamente los valores en inglés indicados arriba.
+
+        Responde ÚNICAMENTE con esta estructura JSON exacta:
         {"description": "...", "classification": "...", "danger_level": "...", "confidence": 0.0, "reasoning": "..."}
         """
 

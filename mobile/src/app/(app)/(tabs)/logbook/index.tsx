@@ -118,54 +118,48 @@ export default function LogbookScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.lg,
-          paddingBottom: 4,
-        }}
-      >
-        <View style={{ flex: 1 }}>
+      <View style={{ paddingTop: 16, paddingBottom: 12, paddingHorizontal: spacing.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <Text
             style={{
+              flex: 1,
               fontFamily: fonts.display,
-              fontSize: fontSizes.display,
+              fontSize: 28,
+              letterSpacing: 4,
               color: colors.textPrimary,
-              letterSpacing: 1,
-              lineHeight: fontSizes.display * 1.1,
+              lineHeight: 30,
             }}
           >
             BITÁCORA
           </Text>
-          <Text
-            style={{
-              fontFamily: fonts.mono,
-              fontSize: 11,
-              color: colors.textSecondary,
-              marginTop: 2,
-            }}
+          <TouchableOpacity
+            onPress={downloadAll}
+            activeOpacity={0.75}
+            style={{ padding: spacing.xs, marginTop: 2 }}
+            accessibilityLabel="Descargar bitácora offline"
           >
-            {entries?.length ?? 0} registros
-          </Text>
+            {isDownloadingAll ? (
+              <ActivityIndicator size="small" color={colors.textSecondary} />
+            ) : downloadAllDone ? (
+              <Ionicons name="checkmark-circle" size={22} color={colors.textSuccess} />
+            ) : (
+              <Ionicons name="download-outline" size={22} color={colors.textSecondary} />
+            )}
+          </TouchableOpacity>
         </View>
-
-        {/* Download header action */}
-        <TouchableOpacity
-          onPress={downloadAll}
-          activeOpacity={0.75}
-          style={{ padding: spacing.xs, marginTop: 4 }}
-          accessibilityLabel="Descargar bitácora offline"
+        <Text
+          style={{
+            fontFamily: fonts.mono,
+            fontSize: 10,
+            letterSpacing: 2,
+            color: colors.textSecondary,
+            marginTop: 2,
+            marginBottom: 12,
+          }}
         >
-          {isDownloadingAll ? (
-            <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : downloadAllDone ? (
-            <Ionicons name="checkmark-circle" size={22} color={colors.textSuccess} />
-          ) : (
-            <Ionicons name="download-outline" size={22} color={colors.textSecondary} />
-          )}
-        </TouchableOpacity>
+          Registro de Formas de Vida
+        </Text>
+        <View style={{ height: 1, backgroundColor: colors.borderDefault }} />
       </View>
 
       {/* Search + Filter chips */}

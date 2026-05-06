@@ -17,8 +17,9 @@ import { makeStyles } from '@/styles/captureStyles';
 import { StarField } from '@/components/ui/StarField';
 import { useCamera } from '@/hooks/useCamera';
 import { storageApi } from '@/services/api/storage.api';
-import { aiApi } from '@/services/api/ai.api';
+import { aiApi, type AIResponse } from '@/services/api/ai.api';
 import { logbookApi } from '@/services/api/logbook.api';
+import { CLASSIFICATION_LABELS, DANGER_LABELS } from '@/constants/labels';
 
 export default function CaptureScreen() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function CaptureScreen() {
   const [error,            setError]            = useState<string | null>(null);
   const [isProcessing,     setIsProcessing]     = useState(false);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [aiResult,         setAiResult]         = useState<AIResponse | null>(null);
 
   const takePhoto = async () => {
     if (!cameraRef.current) return;
@@ -53,6 +55,7 @@ export default function CaptureScreen() {
   const toggleFacing = () => setFacing((c) => (c === 'back' ? 'front' : 'back'));
   const toggleFlash  = () => setFlashMode((c) => (c === 'off' ? 'on' : 'off'));
   const clearPhoto   = () => setLastPhoto(null);
+  const clearAll     = () => { setAiResult(null); clearPhoto(); };
 
   const saveToGallery = async (uri: string) => {
     try {
@@ -94,12 +97,7 @@ export default function CaptureScreen() {
         danger_level:   aiData.danger_level   || 'UNKNOWN',
       });
 
-      Alert.alert(
-        '¡Análisis completo!',
-        `🧬 ${aiData.description}\n\n⚠️ ${aiData.danger_level}`,
-        [{ text: 'Ver Bitácora', onPress: () => router.back() }, { text: 'OK' }],
-      );
-      clearPhoto();
+      setAiResult(aiData);
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Error desconocido');
     } finally {
@@ -129,13 +127,58 @@ export default function CaptureScreen() {
   }
 
   if (lastPhoto) {
+    if (aiResult) {
+      return (
+        <View style={s.container}>
+          <Image source={{ uri: lastPhoto.uri }} style={s.preview} />
+          <TouchableOpacity style={s.backBtn} onPress={() => setAiResult(null)}>
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={s.previewControls}>
+            <StarField />
+            <Text style={s.resultTitle}>¡Análisis completo!</Text>
+            <Text style={s.resultDesc}>{aiResult.description}</Text>
+            <View style={s.resultMetaRow}>
+              {(() => {
+                const cc = theme.classificationColors[aiResult.classification as keyof typeof theme.classificationColors] ?? theme.classificationColors.UNKNOWN_ORGANISM;
+                const dc = theme.dangerColors[aiResult.danger_level as keyof typeof theme.dangerColors] ?? theme.dangerColors.UNKNOWN;
+                const { fonts, spacing, radii } = theme;
+                return (
+                  <>
+                    <View style={{ borderRadius: radii.full, borderWidth: 1, borderColor: `${cc.border}99`, backgroundColor: cc.bg, paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}>
+                      <Text style={{ fontFamily: fonts.heading, fontSize: 11, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                        {CLASSIFICATION_LABELS[aiResult.classification as keyof typeof CLASSIFICATION_LABELS] ?? aiResult.classification}
+                      </Text>
+                    </View>
+                    <View style={{ borderRadius: radii.full, borderWidth: 1, borderColor: `${dc.border}99`, backgroundColor: dc.bg, paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}>
+                      <Text style={{ fontFamily: fonts.heading, fontSize: 11, color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                        {DANGER_LABELS[aiResult.danger_level as keyof typeof DANGER_LABELS] ?? aiResult.danger_level}
+                      </Text>
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+            <View style={s.row}>
+              <TouchableOpacity style={[s.btn, s.btnGray]} onPress={clearAll}>
+                <Text style={s.btnText}>Nueva Foto</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={[s.btn, s.btnBlue]} onPress={() => router.push('/(app)/(tabs)/logbook')}>
+              <Text style={s.btnTextLg}>Ver Bitácora</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View style={s.container}>
         <Image source={{ uri: lastPhoto.uri }} style={s.preview} />
 
         {isProcessing && (
           <View style={s.processingOverlay}>
-            <ActivityIndicator size="large" color={theme.colors.textSuccess} />
+            <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={s.processingText}>{processingStatus}</Text>
           </View>
         )}
