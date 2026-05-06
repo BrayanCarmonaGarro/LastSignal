@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+
 import { useTheme } from '@/constants/theme';
 import { CLASSIFICATION_LABELS } from '@/constants/labels';
 import { useLogbook } from '@/hooks/useLogbook';
+import { aiApi } from '@/services/api/ai.api'; 
 import { LogbookCard } from '@/components/logbook/LogbookCard';
 import { LogbookSkeletonCard } from '@/components/logbook/LogbookSkeletonCard';
 import { LogbookEmptyState } from '@/components/logbook/LogbookEmptyState';
@@ -40,11 +44,71 @@ export default function LogbookScreen() {
     setFilter,
     downloadAll,
     deleteEntry,
-    
   } = useLogbook();
 
-  const [search,     setSearch]     = useState('');
+  const [search, setSearch] = useState('');
   const [activeChip, setActiveChip] = useState<FilterKey>('ALL');
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+
+  const soundRef = useRef<Audio.Sound | null>(null);
+
+  useEffect(() => {
+    return () => {
+      soundRef.current?.unloadAsync();
+    };
+  }, []);
+
+  const handlePlayAudio = useCallback(async (entry: LogbookEntry) => {
+    try {
+      if (soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded && status.isPlaying) {
+          await soundRef.current.pauseAsync();
+          return;
+        }
+        await soundRef.current.unloadAsync();
+      }
+
+      let finalUri = entry.audio_url;
+
+      if (!finalUri) {
+        setIsGenerating(entry.id);
+        const cachePath = `${FileSystem.cacheDirectory}speech_${entry.id}.wav`;
+        const fileInfo = await FileSystem.getInfoAsync(cachePath);
+
+        if (!fileInfo.exists) {
+          const blob = await aiApi.generateAudio(entry.description);
+          if (blob.size < 100) { 
+              throw new Error("Audio corrupto");
+          }
+
+          const base64Data = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          await FileSystem.writeAsStringAsync(cachePath, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+        finalUri = cachePath;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: finalUri },
+        { shouldPlay: true }
+      );
+
+      soundRef.current = sound;
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'No se pudo reproducir el análisis de voz.');
+    } finally {
+      setIsGenerating(null);
+    }
+  }, []);
 
   const handleChipChange = (key: FilterKey) => {
     setActiveChip(key);
@@ -73,7 +137,8 @@ export default function LogbookScreen() {
   };
 
   const handleLongPress = (entry: LogbookEntry) => {
-    const options = ['Ver detalle', 'Escuchar audio', 'Descargar', 'Eliminar', 'Cancelar'];
+    const audioLabel = isGenerating === entry.id ? 'Generando...' : 'Escuchar audio';
+    const options = ['Ver detalle', audioLabel, 'Descargar', 'Eliminar', 'Cancelar'];
     const destructiveIndex = 3;
     const cancelIndex      = 4;
 
@@ -82,14 +147,14 @@ export default function LogbookScreen() {
         { options, destructiveButtonIndex: destructiveIndex, cancelButtonIndex: cancelIndex },
         (idx) => {
           if (idx === 0) router.push(`/(app)/(tabs)/logbook/${entry.id}` as never);
-          if (idx === 1) router.push(`/(app)/(tabs)/logbook/${entry.id}` as never);
+          if (idx === 1) handlePlayAudio(entry);
           if (idx === 3) deleteEntry(entry.id);
         },
       );
     } else {
       Alert.alert('Acciones', entry.description.slice(0, 60), [
         { text: 'Ver detalle',   onPress: () => router.push(`/(app)/(tabs)/logbook/${entry.id}` as never) },
-        { text: 'Escuchar audio', onPress: () => router.push(`/(app)/(tabs)/logbook/${entry.id}` as never) },
+        { text: audioLabel,      onPress: () => handlePlayAudio(entry) },
         { text: 'Cancelar', style: 'cancel' },
       ]);
     }
@@ -104,7 +169,7 @@ export default function LogbookScreen() {
         onDelete={() => deleteEntry(item.id)}
       />
     ),
-    [router, deleteEntry],
+    [router, deleteEntry, isGenerating]
   );
 
   const keyExtractor = useCallback((item: LogbookEntry) => item.id, []);
@@ -133,7 +198,6 @@ export default function LogbookScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      {/* Header */}
       <View style={{ paddingTop: 16, paddingBottom: 12, paddingHorizontal: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
           <Text
@@ -152,7 +216,6 @@ export default function LogbookScreen() {
             onPress={downloadAll}
             activeOpacity={0.75}
             style={{ padding: spacing.xs, marginTop: 2 }}
-            accessibilityLabel="Descargar bitácora offline"
           >
             {isDownloadingAll ? (
               <ActivityIndicator size="small" color={colors.textSecondary} />
@@ -178,7 +241,6 @@ export default function LogbookScreen() {
         <View style={{ height: 1, backgroundColor: colors.borderDefault }} />
       </View>
 
-      {/* Search + Filter chips */}
       <View style={{ marginTop: 8 }}>
         <LogbookSearchBar 
           value={search}
@@ -190,7 +252,6 @@ export default function LogbookScreen() {
         <LogbookFilterChips active={activeChip} onChange={handleChipChange} />
       </View>
 
-      {/* List */}
       <View style={{ flex: 1, marginTop: 12 }}>
       {(isLoading || isSearchingRAG) && !isRefreshing ? ( 
         <SkeletonList />
