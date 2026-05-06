@@ -109,13 +109,13 @@ export const makeStyles = ({
       paddingVertical: spacing.xs,
       alignItems: "center",
       marginLeft: spacing.sm,
+      minWidth: 44,
     },
     levelLabel: {
       fontFamily: fonts.mono,
       fontSize: fontSizes.micro,
       color: colors.textMuted,
       textTransform: "uppercase",
-      letterSpacing: 1,
     },
     levelValue: {
       fontFamily: fonts.mono,

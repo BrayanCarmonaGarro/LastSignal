@@ -7,8 +7,8 @@ import { palette } from '../tokens/palette';
 
 export const dangerColors = {
   DANGEROUS: {
-    bg:     palette.dangerBg,
-    border: palette.rust,
+    bg:     palette.dangerDim,
+    border: palette.danger,
     text:   palette.danger,
   },
   FRIENDLY: {

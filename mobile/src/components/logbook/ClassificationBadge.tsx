@@ -32,7 +32,7 @@ export function ClassificationBadge({ classification, size = 'md' }: Props) {
         style={{
           fontFamily: fonts.mono,
           fontSize: isSm ? fontSizes.micro : fontSizes.caption,
-          color: colors.text,
+          color: '#FFFFFF',
           textTransform: 'uppercase',
           letterSpacing: 0.8,
         }}

@@ -212,7 +212,7 @@ export function LogbookCard({ entry, onPress, onDelete, onLongPress }: Props) {
               {isDangerous && (
                 <>
                   <Ionicons name="warning" size={10} color={colors.danger} />
-                  <Text style={{ fontFamily: fonts.mono, fontSize: 9, color: colors.danger }}>
+                  <Text style={{ fontFamily: fonts.mono, fontSize: 9, color: '#FFFFFF' }}>
                     PELIGROSO
                   </Text>
                 </>
