@@ -9,6 +9,9 @@ import {
 import { CameraView } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/theme';
 import { makeStyles } from '@/styles/captureStyles';
@@ -60,6 +63,32 @@ export default function CaptureScreen() {
   const toggleFlash  = () => setFlashMode((c) => (c === 'off' ? 'on' : 'off'));
   const clearPhoto   = () => setLastPhoto(null);
   const clearAll     = () => { setAiResult(null); clearPhoto(); };
+
+  const pickFromGallery = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: 'images',
+      allowsEditing: false,
+      quality: 1,
+    });
+    if (!result.canceled && result.assets.length > 0) {
+      setLastPhoto({ uri: result.assets[0].uri });
+      setError(null);
+    }
+  };
+
+  const saveToGallery = async (uri: string) => {
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status === 'granted') {
+        await MediaLibrary.saveToLibraryAsync(uri);
+        Alert.alert('¡Éxito!', 'Foto guardada en la galería.');
+      } else {
+        setError('Necesitamos permisos para guardar en la galería.');
+      }
+    } catch {
+      setError('Error al guardar la imagen.');
+    }
+  };
 
   const handleCreateLogbook = async () => {
     if (!lastPhoto) return;
@@ -234,7 +263,7 @@ export default function CaptureScreen() {
 
       <CameraView ref={cameraRef} style={s.camera} facing={facing} flash={flashMode}>
         <View style={s.controls}>
-          <TouchableOpacity style={s.iconBtn} onPress={() => {}}>
+          <TouchableOpacity style={s.iconBtn} onPress={pickFromGallery}>
             <Ionicons name="images-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity style={s.captureBtn} onPress={takePhoto} />

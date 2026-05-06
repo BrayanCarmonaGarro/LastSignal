@@ -3,9 +3,6 @@ import {
   View,
   Text,
   FlatList,
-  ActionSheetIOS,
-  Platform,
-  Alert,
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
@@ -25,6 +22,7 @@ import { LogbookSkeletonCard } from '@/components/logbook/LogbookSkeletonCard';
 import { LogbookEmptyState } from '@/components/logbook/LogbookEmptyState';
 import { LogbookSearchBar } from '@/components/logbook/LogbookSearchBar';
 import { LogbookFilterChips, type FilterKey } from '@/components/logbook/LogbookFilterChips';
+import { LogbookActionSheet } from '@/components/logbook/LogbookActionSheet';
 import type { LogbookEntry } from '@/types/logbook.types';
 
 export default function LogbookScreen() {
@@ -63,6 +61,7 @@ export default function LogbookScreen() {
   useEffect(() => {
     if (downloadAllError) showToast('Error al descargar la bitácora', 'error');
   }, [downloadAllError]);
+  const [actionEntry, setActionEntry] = useState<LogbookEntry | null>(null);
 
   const soundRef = useRef<Audio.Sound | null>(null);
 
@@ -151,27 +150,7 @@ export default function LogbookScreen() {
   };
 
   const handleLongPress = (entry: LogbookEntry) => {
-    const audioLabel = isGenerating === entry.id ? 'Generando...' : 'Escuchar audio';
-    const options = ['Ver detalle', audioLabel, 'Descargar', 'Eliminar', 'Cancelar'];
-    const destructiveIndex = 3;
-    const cancelIndex      = 4;
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options, destructiveButtonIndex: destructiveIndex, cancelButtonIndex: cancelIndex },
-        (idx) => {
-          if (idx === 0) router.push(`/(app)/(tabs)/logbook/${entry.id}` as never);
-          if (idx === 1) handlePlayAudio(entry);
-          if (idx === 3) deleteEntry(entry.id);
-        },
-      );
-    } else {
-      Alert.alert('Acciones', entry.description.slice(0, 60), [
-        { text: 'Ver detalle',   onPress: () => router.push(`/(app)/(tabs)/logbook/${entry.id}` as never) },
-        { text: audioLabel,      onPress: () => handlePlayAudio(entry) },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
-    }
+    setActionEntry(entry);
   };
 
   const renderItem = useCallback(
@@ -309,6 +288,22 @@ export default function LogbookScreen() {
         />
       )}
       </View>
+
+      <LogbookActionSheet
+        entry={actionEntry}
+        onClose={() => setActionEntry(null)}
+        onViewDetail={() => {
+          if (!actionEntry) return;
+          router.push(`/(app)/(tabs)/logbook/${actionEntry.id}` as never);
+          setActionEntry(null);
+        }}
+        onPlayAudio={() => {
+          if (!actionEntry) return;
+          handlePlayAudio(actionEntry);
+          setActionEntry(null);
+        }}
+        isGeneratingAudio={isGenerating === actionEntry?.id}
+      />
     </View>
   );
 }
