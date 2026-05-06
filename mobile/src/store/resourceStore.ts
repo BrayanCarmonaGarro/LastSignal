@@ -7,6 +7,7 @@ interface ResourceState {
   loading: boolean;
   error: string | null;
   fetchResources: () => Promise<void>;
+  clear: () => void;
 }
 
 export const useResourceStore = create<ResourceState>((set) => ({
@@ -26,4 +27,6 @@ export const useResourceStore = create<ResourceState>((set) => ({
       });
     }
   },
+
+  clear: () => set({ resources: [], loading: false, error: null }),
 }));

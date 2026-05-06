@@ -12,7 +12,7 @@ const STALE_THRESHOLD_MS = 60_000;
 export function useDashboard() {
   const router = useRouter();
 
-  const { data, isLoading, isRefreshing, error, fetch, refresh: refreshDashboard, lastFetchedAt, clear: clearDashboard } =
+  const { data, isLoading, isRefreshing, error, fetch, refresh: refreshDashboard } =
     useDashboardStore();
   const { fetchResources } = useResourceStore();
   const { logout } = useLogout();
@@ -29,9 +29,10 @@ export function useDashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      const stale = !lastFetchedAt || Date.now() - lastFetchedAt > STALE_THRESHOLD_MS;
-      if (stale && !isLoading) fetch();
-    }, [lastFetchedAt, isLoading, fetch]),
+      const { lastFetchedAt: ts, isLoading: loading } = useDashboardStore.getState();
+      const stale = !ts || Date.now() - ts > STALE_THRESHOLD_MS;
+      if (stale && !loading) fetch();
+    }, [fetch]),
   );
 
   const openProfile = () => {
@@ -43,7 +44,6 @@ export function useDashboard() {
 
   const confirmLogout = async () => {
     setProfileVisible(false);
-    clearDashboard();
     await logout();
   };
 
