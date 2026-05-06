@@ -4,7 +4,7 @@
  */
 
 export const resourcesTheme = {
-  bg:           '#EDE8D8',
+  bg:           '#F5F0E8',
   bgCard:       '#D9D0BA',
   bgCardAlt:    '#CFC6B0',
   bgSummary:    '#C8BFA8',
