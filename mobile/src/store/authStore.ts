@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { KeycloakUser, KeycloakTokens, parseJwt, refreshAccessToken } from '@/services/auth/keycloak';
 import type { DbUserProfile } from '@/services/api/users.api';
+import { useResourceStore } from '@/store/resourceStore';
 
 const KEYS = {
   accessToken:  'ls_access_token',
@@ -66,12 +67,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       try {
         const dbUser = await usersApi.getMe();
         set({ dbUser, isLoading: false });
+        useResourceStore.getState().fetchResources();
       } catch {
         const ok = await get().refresh();
         if (ok) {
           try {
             const dbUser = await usersApi.getMe();
             set({ dbUser, isLoading: false });
+            useResourceStore.getState().fetchResources();
           } catch {
             set({ isLoading: false });
           }

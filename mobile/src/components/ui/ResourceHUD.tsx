@@ -20,11 +20,9 @@ export function ResourceHUD() {
 
   useEffect(() => {
     fetchResources();
-  }, [fetchResources]);
+  }, []);
 
-  if (error) return null;
-
-  if (loading) {
+  if (loading || error) {
     return (
       <View style={styles.container}>
         {HUD_RESOURCE_NAMES.map((name) => (

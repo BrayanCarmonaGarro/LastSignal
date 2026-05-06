@@ -11,7 +11,7 @@ interface ResourceState {
 
 export const useResourceStore = create<ResourceState>((set) => ({
   resources: [],
-  loading: false,
+  loading: true,
   error: null,
 
   fetchResources: async () => {
