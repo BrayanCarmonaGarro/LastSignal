@@ -17,7 +17,10 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '@/constants/theme';
 import { CLASSIFICATION_LABELS } from '@/constants/labels';
 import { useLogbook } from '@/hooks/useLogbook';
-import { aiApi } from '@/services/api/ai.api'; 
+import { useNetworkStatus } from '@/hooks/offline/useNetworkStatus';
+import { useToast } from '@/context/ToastContext';
+import { photoQueue } from '@/services/offline/queue';
+import { aiApi } from '@/services/api/ai.api';
 import { LogbookCard } from '@/components/logbook/LogbookCard';
 import { LogbookSkeletonCard } from '@/components/logbook/LogbookSkeletonCard';
 import { LogbookEmptyState } from '@/components/logbook/LogbookEmptyState';
@@ -34,21 +37,39 @@ export default function LogbookScreen() {
     isLoading,
     isRefreshing,
     isLoadingMore,
-    isSearchingRAG,  
+    isSearchingRAG,
     error,
     isDownloadingAll,
     downloadAllDone,
+    downloadAllError,
+    cameFromCache,
     refresh,
     loadMore,
-    searchRAG,    
+    searchRAG,
     setFilter,
     downloadAll,
     deleteEntry,
   } = useLogbook();
 
+  const { isConnected } = useNetworkStatus();
+  const { showToast } = useToast();
+
   const [search, setSearch] = useState('');
   const [activeChip, setActiveChip] = useState<FilterKey>('ALL');
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    photoQueue.pendingCount().then(setPendingCount);
+  }, [isConnected]);
+
+  useEffect(() => {
+    if (downloadAllDone) showToast('Bitácora descargada para uso offline', 'success');
+  }, [downloadAllDone]);
+
+  useEffect(() => {
+    if (downloadAllError) showToast('Error al descargar la bitácora', 'error');
+  }, [downloadAllError]);
 
   const soundRef = useRef<Audio.Sound | null>(null);
 
@@ -253,9 +274,9 @@ export default function LogbookScreen() {
       </View>
 
       <View style={{ flex: 1, marginTop: 12 }}>
-      {(isLoading || isSearchingRAG) && !isRefreshing ? ( 
+      {(isLoading || isSearchingRAG) && !isRefreshing ? (
         <SkeletonList />
-      ) : error ? (
+      ) : error && isConnected !== false ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
           <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.body, color: colors.danger, textAlign: 'center' }}>
             {error}
@@ -275,6 +296,26 @@ export default function LogbookScreen() {
           refreshing={isRefreshing}
           onEndReached={() => { if (!search.trim()) loadMore(); }}
           onEndReachedThreshold={0.3}
+          ListHeaderComponent={
+            <>
+              {pendingCount > 0 && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.bgTertiary, borderRadius: 8, borderLeftWidth: 3, borderLeftColor: colors.primaryLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, marginHorizontal: spacing.lg, marginBottom: spacing.md }}>
+                  <Ionicons name="cloud-upload-outline" size={16} color={colors.primaryLight} />
+                  <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.caption, color: colors.primaryLight }}>
+                    {pendingCount} foto{pendingCount > 1 ? 's' : ''} pendiente{pendingCount > 1 ? 's' : ''} de sincronizar
+                  </Text>
+                </View>
+              )}
+              {cameFromCache && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.sm }}>
+                  <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+                  <Text style={{ fontFamily: fonts.caption, fontSize: fontSizes.caption, color: colors.textMuted }}>
+                    Mostrando datos guardados
+                  </Text>
+                </View>
+              )}
+            </>
+          }
           ListFooterComponent={<ListFooter />}
           ListEmptyComponent={
             <LogbookEmptyState

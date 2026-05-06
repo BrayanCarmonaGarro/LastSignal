@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readStorage, writeStorage, removeStorage } from '@/utils/storage';
 import { storageApi } from '@/services/api/storage.api';
 import { aiApi } from '@/services/api/ai.api';
 import { logbookApi } from '@/services/api/logbook.api';
@@ -13,18 +13,8 @@ export type PendingPhoto = {
   retries: number;
 };
 
-async function load(): Promise<PendingPhoto[]> {
-  try {
-    const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-async function save(queue: PendingPhoto[]): Promise<void> {
-  await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-}
+const load = async (): Promise<PendingPhoto[]> => (await readStorage<PendingPhoto[]>(QUEUE_KEY)) ?? [];
+const save = (queue: PendingPhoto[]) => writeStorage(QUEUE_KEY, queue);
 
 export const photoQueue = {
   enqueue: async (photoUri: string, base64: string): Promise<void> => {
@@ -77,7 +67,5 @@ export const photoQueue = {
     return synced;
   },
 
-  clear: async (): Promise<void> => {
-    await AsyncStorage.removeItem(QUEUE_KEY);
-  },
+  clear: (): Promise<void> => removeStorage(QUEUE_KEY),
 };

@@ -35,16 +35,6 @@ export const logbookApi = {
       body: JSON.stringify(data),
     }),
 
-  downloadEntry: (id: string) =>
-    apiRequest<{ downloaded_until: string }>(`/logbook/${id}/download`, {
-      method: 'POST',
-    }),
-
-  downloadAll: () =>
-    apiRequest<{ downloaded_until: string }>('/logbook/download-all', {
-      method: 'POST',
-    }),
-
   delete: (id: string) =>
     apiRequest<void>(`/logbook/${id}`, { method: 'DELETE' }),
   
