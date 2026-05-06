@@ -22,6 +22,7 @@ export interface DashboardLogbookEntry {
 }
 
 export interface LogbookEntry extends DashboardLogbookEntry {
+  similar_findings: any;
   user_id: string;
   sync_status: SyncStatus;
   is_downloaded: boolean;

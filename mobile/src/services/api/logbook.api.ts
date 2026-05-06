@@ -47,4 +47,10 @@ export const logbookApi = {
 
   delete: (id: string) =>
     apiRequest<void>(`/logbook/${id}`, { method: 'DELETE' }),
+  
+  searchRAG: (query: string) =>
+    apiRequest<LogbookEntry[]>('/classification/search', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
+    }),
 };

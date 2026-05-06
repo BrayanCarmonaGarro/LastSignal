@@ -80,14 +80,22 @@ export default function NewEntryScreen() {
       const aiData = await aiApi.analyzeImage(upload.url_acceso);
 
       setProcessingStatus('Guardando...');
-      await logbookApi.create({
+      const response = await logbookApi.create({
         photo_url:      upload.url_acceso,
         description:    aiData.description    || 'Sin descripción',
         classification: aiData.classification || 'UNKNOWN_ORGANISM',
         danger_level:   aiData.danger_level   || 'UNKNOWN',
       });
 
-      Alert.alert('¡Análisis completo!', `🧬 ${aiData.description}\n\n⚠️ ${aiData.danger_level}`);
+      const similarMsg = response.similar_findings?.length > 0 
+        ? `\n\n📚 Hallazgos similares:\n- ${response.similar_findings.join('\n- ')}`
+        : '\n\n🆕 Primer registro de este espécimen.';
+
+      Alert.alert(
+        '¡Análisis completo!', 
+        `🧬 ${aiData.description}\n\n⚠️ Peligro: ${aiData.danger_level}${similarMsg}`
+      );
+      
       clearPhoto();
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Error desconocido');
@@ -96,8 +104,6 @@ export default function NewEntryScreen() {
       setProcessingStatus('');
     }
   };
-
-  // ─── Vistas condicionales ─────────────────────────────────
 
   if (cameraStatus === 'loading') {
     return (

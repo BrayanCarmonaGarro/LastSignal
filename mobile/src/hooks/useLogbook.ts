@@ -1,4 +1,3 @@
-// Operaciones de bitácora
 import { useEffect } from 'react';
 import { useLogbookStore } from '@/store/logbookStore';
 import type { LifeFormCategory } from '@/types/logbook.types';
@@ -9,14 +8,17 @@ export function useLogbook() {
     isLoading,
     isRefreshing,
     isLoadingMore,
+    isSearchingRAG,
     error,
     hasMore,
     filter,
     isDownloadingAll,
     downloadAllDone,
     fetch,
+    clearSearch,
     refresh,
     loadMore,
+    searchRAG,   
     setFilter,
     downloadAll,
     deleteEntry,
@@ -27,10 +29,12 @@ export function useLogbook() {
   }, []);
 
   return {
+    clearSearch,
     entries,
     isLoading,
     isRefreshing,
     isLoadingMore,
+    isSearchingRAG, 
     error,
     hasMore,
     filter,
@@ -38,6 +42,7 @@ export function useLogbook() {
     downloadAllDone,
     refresh,
     loadMore,
+    searchRAG,  
     setFilter,
     downloadAll,
     deleteEntry,
