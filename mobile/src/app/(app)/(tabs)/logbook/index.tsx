@@ -1,89 +1,162 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import {
   View,
   Text,
   FlatList,
-  ActionSheetIOS,
-  Platform,
-  Alert,
   TouchableOpacity,
   ActivityIndicator,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '@/constants/theme';
-import { CLASSIFICATION_LABELS } from '@/constants/labels';
-import { useLogbook } from '@/hooks/useLogbook';
-import { LogbookCard } from '@/components/logbook/LogbookCard';
-import { LogbookSkeletonCard } from '@/components/logbook/LogbookSkeletonCard';
-import { LogbookEmptyState } from '@/components/logbook/LogbookEmptyState';
-import { LogbookSearchBar } from '@/components/logbook/LogbookSearchBar';
-import { LogbookFilterChips, type FilterKey } from '@/components/logbook/LogbookFilterChips';
-import type { LogbookEntry } from '@/types/logbook.types';
+  Alert,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system/legacy";
+
+import { useTheme } from "@/constants/theme";
+import { CLASSIFICATION_LABELS } from "@/constants/labels";
+import { useLogbook } from "@/hooks/useLogbook";
+import { useNetworkStatus } from "@/hooks/offline/useNetworkStatus";
+import { useToast } from "@/context/ToastContext";
+import { aiApi } from "@/services/api/ai.api";
+import { LogbookCard } from "@/components/logbook/LogbookCard";
+import { LogbookSkeletonCard } from "@/components/logbook/LogbookSkeletonCard";
+import { LogbookEmptyState } from "@/components/logbook/LogbookEmptyState";
+import { LogbookSearchBar } from "@/components/logbook/LogbookSearchBar";
+import {
+  LogbookFilterChips,
+  type FilterKey,
+} from "@/components/logbook/LogbookFilterChips";
+import { LogbookActionSheet } from "@/components/logbook/LogbookActionSheet";
+import type { LogbookEntry } from "@/types/logbook.types";
 
 export default function LogbookScreen() {
   const { colors, fonts, fontSizes, spacing } = useTheme();
-  const insets  = useSafeAreaInsets();
-  const router  = useRouter();
+  const router = useRouter();
 
   const {
     entries,
     isLoading,
     isRefreshing,
     isLoadingMore,
+    isSearchingRAG,
     error,
     isDownloadingAll,
     downloadAllDone,
+    downloadAllError,
+    cameFromCache,
     refresh,
     loadMore,
+    searchRAG,
     setFilter,
     downloadAll,
     deleteEntry,
   } = useLogbook();
 
-  const [search,     setSearch]     = useState('');
-  const [activeChip, setActiveChip] = useState<FilterKey>('ALL');
+  const { isConnected } = useNetworkStatus();
+  const { showToast } = useToast();
+
+  const [search, setSearch] = useState("");
+  const [activeChip, setActiveChip] = useState<FilterKey>("ALL");
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  useEffect(() => {
+    if (downloadAllDone)
+      showToast("Bitácora descargada para uso offline", "success");
+  }, [downloadAllDone]);
+
+  useEffect(() => {
+    if (downloadAllError) showToast("Error al descargar la bitácora", "error");
+  }, [downloadAllError]);
+  const [actionEntry, setActionEntry] = useState<LogbookEntry | null>(null);
+
+  const soundRef = useRef<Audio.Sound | null>(null);
+
+  useEffect(() => {
+    return () => {
+      soundRef.current?.unloadAsync();
+    };
+  }, []);
+
+  const handlePlayAudio = useCallback(async (entry: LogbookEntry) => {
+    try {
+      if (soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded && status.isPlaying) {
+          await soundRef.current.pauseAsync();
+          return;
+        }
+        await soundRef.current.unloadAsync();
+      }
+
+      let finalUri = entry.audio_url;
+
+      if (!finalUri) {
+        setIsGenerating(entry.id);
+        const cachePath = `${FileSystem.cacheDirectory}speech_${entry.id}.wav`;
+        const fileInfo = await FileSystem.getInfoAsync(cachePath);
+
+        if (!fileInfo.exists) {
+          const blob = await aiApi.generateAudio(entry.description);
+          if (blob.size < 100) {
+            throw new Error("Audio corrupto");
+          }
+
+          const base64Data = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () =>
+              resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          await FileSystem.writeAsStringAsync(cachePath, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+        finalUri = cachePath;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: finalUri },
+        { shouldPlay: true },
+      );
+
+      soundRef.current = sound;
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "No se pudo reproducir el análisis de voz.");
+    } finally {
+      setIsGenerating(null);
+    }
+  }, []);
 
   const handleChipChange = (key: FilterKey) => {
     setActiveChip(key);
-    if (key === 'ALL')        setFilter({});
-    else if (key === 'PELIGROSAS') setFilter({ danger: 'DANGEROUS' });
-    else                      setFilter({ classification: key as any });
+    if (key === "ALL") setFilter({});
+    else if (key === "PELIGROSAS") setFilter({ danger: "DANGEROUS" });
+    else setFilter({ classification: key as any });
   };
 
   const filtered = useMemo(() => {
     const safe = entries ?? [];
-    if (!search.trim()) return safe;
-    const q = search.toLowerCase();
-    return safe.filter(
-      (e) =>
-        e.description.toLowerCase().includes(q) ||
-        (CLASSIFICATION_LABELS[e.classification] ?? '').toLowerCase().includes(q),
-    );
+    return safe;
   }, [entries, search]);
 
-  const handleLongPress = (entry: LogbookEntry) => {
-    const options = ['Ver detalle', 'Escuchar audio', 'Descargar', 'Eliminar', 'Cancelar'];
-    const destructiveIndex = 3;
-    const cancelIndex      = 4;
-
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options, destructiveButtonIndex: destructiveIndex, cancelButtonIndex: cancelIndex },
-        (idx) => {
-          if (idx === 0) router.push(`/(app)/(tabs)/logbook/${entry.id}` as never);
-          if (idx === 1) router.push(`/(app)/(tabs)/logbook/${entry.id}` as never);
-          if (idx === 3) deleteEntry(entry.id);
-        },
-      );
+  const handleSearchSubmit = () => {
+    if (search.trim()) {
+      searchRAG(search);
     } else {
-      Alert.alert('Acciones', entry.description.slice(0, 60), [
-        { text: 'Ver detalle',   onPress: () => router.push(`/(app)/(tabs)/logbook/${entry.id}` as never) },
-        { text: 'Escuchar audio', onPress: () => router.push(`/(app)/(tabs)/logbook/${entry.id}` as never) },
-        { text: 'Cancelar', style: 'cancel' },
-      ]);
+      refresh();
     }
+  };
+
+  const handleLongPress = (entry: LogbookEntry) => {
+    setActionEntry(entry);
   };
 
   const renderItem = useCallback(
@@ -95,7 +168,7 @@ export default function LogbookScreen() {
         onDelete={() => deleteEntry(item.id)}
       />
     ),
-    [router, deleteEntry],
+    [router, deleteEntry, isGenerating],
   );
 
   const keyExtractor = useCallback((item: LogbookEntry) => item.id, []);
@@ -103,7 +176,7 @@ export default function LogbookScreen() {
   const ListFooter = () => {
     if (!isLoadingMore) return null;
     return (
-      <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+      <View style={{ paddingVertical: spacing.lg, alignItems: "center" }}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
@@ -117,99 +190,183 @@ export default function LogbookScreen() {
     </>
   );
 
+  const handleClearSearch = () => {
+    setSearch("");
+    refresh();
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bgPrimary, paddingTop: insets.top }}>
-      {/* Header */}
+    <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
+          paddingTop: 16,
+          paddingBottom: 12,
           paddingHorizontal: spacing.lg,
-          paddingTop: spacing.lg,
-          paddingBottom: 4,
         }}
       >
-        <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
           <Text
             style={{
+              flex: 1,
               fontFamily: fonts.display,
-              fontSize: fontSizes.display,
+              fontSize: 28,
+              letterSpacing: 4,
               color: colors.textPrimary,
-              letterSpacing: 1,
-              lineHeight: fontSizes.display * 1.1,
+              lineHeight: 30,
             }}
           >
             BITÁCORA
           </Text>
-          <Text
-            style={{
-              fontFamily: fonts.mono,
-              fontSize: 11,
-              color: colors.textSecondary,
-              marginTop: 2,
-            }}
+          <TouchableOpacity
+            onPress={downloadAll}
+            activeOpacity={0.75}
+            style={{ padding: spacing.xs, marginTop: 2 }}
           >
-            {entries?.length ?? 0} registros
-          </Text>
+            {isDownloadingAll ? (
+              <ActivityIndicator size="small" color={colors.textSecondary} />
+            ) : downloadAllDone ? (
+              <Ionicons
+                name="checkmark-circle"
+                size={22}
+                color={colors.textSuccess}
+              />
+            ) : (
+              <Ionicons
+                name="download-outline"
+                size={22}
+                color={colors.textSecondary}
+              />
+            )}
+          </TouchableOpacity>
         </View>
-
-        {/* Download header action */}
-        <TouchableOpacity
-          onPress={downloadAll}
-          activeOpacity={0.75}
-          style={{ padding: spacing.xs, marginTop: 4 }}
-          accessibilityLabel="Descargar bitácora offline"
+        <Text
+          style={{
+            fontFamily: fonts.mono,
+            fontSize: 10,
+            letterSpacing: 2,
+            color: colors.textSecondary,
+            marginTop: 2,
+            marginBottom: 12,
+          }}
         >
-          {isDownloadingAll ? (
-            <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : downloadAllDone ? (
-            <Ionicons name="checkmark-circle" size={22} color={colors.textSuccess} />
-          ) : (
-            <Ionicons name="download-outline" size={22} color={colors.textSecondary} />
-          )}
-        </TouchableOpacity>
+          Registro de Formas de Vida
+        </Text>
+        <View style={{ height: 1, backgroundColor: colors.borderDefault }} />
       </View>
 
-      {/* Search + Filter chips */}
       <View style={{ marginTop: 8 }}>
-        <LogbookSearchBar value={search} onChangeText={setSearch} />
+        <LogbookSearchBar
+          value={search}
+          onChangeText={setSearch}
+          onSubmit={handleSearchSubmit}
+          isLoading={isSearchingRAG}
+          onClear={handleClearSearch}
+        />
         <LogbookFilterChips active={activeChip} onChange={handleChipChange} />
       </View>
 
-      {/* List */}
       <View style={{ flex: 1, marginTop: 12 }}>
-      {isLoading && !isRefreshing ? (
-        <SkeletonList />
-      ) : error ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
-          <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.body, color: colors.danger, textAlign: 'center' }}>
-            {error}
-          </Text>
-          <TouchableOpacity onPress={refresh} style={{ marginTop: spacing.md }}>
-            <Text style={{ fontFamily: fonts.heading, fontSize: fontSizes.caption, color: colors.primary }}>
-              Reintentar
+        {(isLoading || isSearchingRAG) && !isRefreshing ? (
+          <SkeletonList />
+        ) : error && isConnected !== false ? (
+          <View
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              padding: spacing.lg,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: fonts.body,
+                fontSize: fontSizes.body,
+                color: colors.danger,
+                textAlign: "center",
+              }}
+            >
+              {error}
             </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList<LogbookEntry>
-          data={filtered}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          onRefresh={refresh}
-          refreshing={isRefreshing}
-          onEndReached={() => { if (!search.trim()) loadMore(); }}
-          onEndReachedThreshold={0.3}
-          ListFooterComponent={<ListFooter />}
-          ListEmptyComponent={
-            <LogbookEmptyState
-              onOpenCamera={() => router.push('/(app)/capture' as never)}
-            />
-          }
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
-        />
-      )}
+            <TouchableOpacity
+              onPress={refresh}
+              style={{ marginTop: spacing.md }}
+            >
+              <Text
+                style={{
+                  fontFamily: fonts.heading,
+                  fontSize: fontSizes.caption,
+                  color: colors.primary,
+                }}
+              >
+                Reintentar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList<LogbookEntry>
+            data={filtered}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            onRefresh={refresh}
+            refreshing={isRefreshing}
+            onEndReached={() => {
+              if (!search.trim()) loadMore();
+            }}
+            onEndReachedThreshold={0.3}
+            ListHeaderComponent={
+              cameFromCache ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.sm,
+                    paddingHorizontal: spacing.lg,
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={{
+                      fontFamily: fonts.caption,
+                      fontSize: fontSizes.caption,
+                      color: colors.textMuted,
+                    }}
+                  >
+                    Mostrando datos guardados
+                  </Text>
+                </View>
+              ) : null
+            }
+            ListFooterComponent={<ListFooter />}
+            ListEmptyComponent={
+              <LogbookEmptyState
+                onOpenCamera={() => router.push("/(app)/capture" as never)}
+              />
+            }
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
+          />
+        )}
       </View>
+
+      <LogbookActionSheet
+        entry={actionEntry}
+        onClose={() => setActionEntry(null)}
+        onViewDetail={() => {
+          if (!actionEntry) return;
+          router.push(`/(app)/(tabs)/logbook/${actionEntry.id}` as never);
+          setActionEntry(null);
+        }}
+        onPlayAudio={() => {
+          if (!actionEntry) return;
+          handlePlayAudio(actionEntry);
+          setActionEntry(null);
+        }}
+        isGeneratingAudio={isGenerating === actionEntry?.id}
+      />
     </View>
   );
 }

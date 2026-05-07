@@ -22,6 +22,7 @@ import { SectionHeader } from "@/components/dashboard/SectionHeader";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { ProfileModal } from "@/components/dashboard/ProfileModal";
 import { RecentAchievementsSection } from "@/components/dashboard/RecentAchievementsSection";
+import { XpChip } from "@/components/dashboard/XpChip";
 
 export default function DashboardScreen() {
   const theme = useTheme();
@@ -120,10 +121,10 @@ export default function DashboardScreen() {
               </Text>
             </View>
           </TouchableOpacity>
-          <View style={s.levelChip}>
-            <Text style={s.levelLabel}>Nivel</Text>
-            <Text style={s.levelValue}>{data?.user.level ?? "-"}</Text>
-          </View>
+          <XpChip
+            level={data?.user.level ?? 1}
+            xp={data?.user.experience_pts ?? 0}
+          />
         </View>
 
         <View style={s.baseCard}>

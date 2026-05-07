@@ -1,8 +1,11 @@
 import json
+import mimetypes
+import os
 from typing import Optional
 import httpx
 from app.core.config import settings
 from app.models.logbook import DangerLevel, LifeFormCategory
+from app.core.config import UPLOAD_DIR
 
 class AIClassificationResult:
     def __init__(
@@ -17,13 +20,15 @@ class AIClassificationResult:
         self.confidence = confidence
         self.raw_response = raw_response
 
+
+def limpiar_json(text: str) -> str:
+    return text.strip().replace("```json", "").replace("```", "")
+
+
 async def classify_life_form(
     photo_url: str, description: str
 ) -> Optional[AIClassificationResult]:
-    """
-    Clasifica una forma de vida usando Gemini a partir de una foto y descripción.
-    Retorna None si la clasificación falla.
-    """
+
     if not settings.ai_api_key:
         return AIClassificationResult(
             classification=LifeFormCategory.UNKNOWN_ORGANISM,
@@ -32,57 +37,88 @@ async def classify_life_form(
             raw_response="{}",
         )
 
+    # Resolver archivo local igual que endpoint
+    nombre_archivo = photo_url.split("/")[-1]
+    ruta_archivo = os.path.join(UPLOAD_DIR, nombre_archivo)
+
+    if not os.path.exists(ruta_archivo):
+        print("Imagen no encontrada localmente")
+        return None
+
     prompt = f"""
-    Analyze this life form discovery on an unknown planet.
-    Description: {description}
-    Photo URL: {photo_url}
+    Actúa como un xenobiólogo experto. Analiza este descubrimiento de forma de vida.
 
-    Classify it as one of: ANIMAL, PLANT, RESOURCE, MINERAL, FUNGI, UNKNOWN_ORGANISM
-    Determine danger level: DANGEROUS, FRIENDLY, UNKNOWN
-    Provide confidence from 0.0 to 1.0
+    Descripción: {description}
 
-    Respond ONLY in JSON with this exact structure:
-    {{"classification": "...", "danger_level": "...", "confidence": 0.0, "reasoning": "..."}}
+    Tareas:
+    1. Genera una descripción corta (1-2 oraciones).
+    2. Clasifícalo como: ANIMAL, PLANT, RESOURCE, MINERAL, FUNGI, UNKNOWN_ORGANISM
+    3. Nivel de peligro: DANGEROUS o FRIENDLY
+    4. Confianza de 0.0 a 1.0
+
+    IMPORTANTE:
+    - "classification" y "danger_level" en inglés exacto
+    - Responde SOLO JSON
+
+    {{
+      "description": "...",
+      "classification": "...",
+      "danger_level": "...",
+      "confidence": 0.0,
+      "reasoning": "..."
+    }}
     """
 
     try:
-        async with httpx.AsyncClient() as client:
-            # Endpoint de Gemini 1.5 Flash (ideal para tareas rápidas multimodales y JSON)
-            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.ai_api_key}"
-            
+        mime_type, _ = mimetypes.guess_type(ruta_archivo)
+
+        with open(ruta_archivo, "rb") as f:
+            image_bytes = f.read()
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={settings.ai_api_key}"
+
             payload = {
-                "contents": [{
-                    "parts": [{"text": prompt}]
-                }],
-                "generationConfig": {
-                    "responseMimeType": "application/json"
-                }
+                "contents": [
+                    {
+                        "parts": [
+                            {"text": prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": mime_type or "image/jpeg",
+                                    "data": image_bytes.hex(),  # <- importante
+                                }
+                            },
+                        ]
+                    }
+                ]
             }
 
-            response = await client.post(
-                gemini_url,
-                json=payload,
-                timeout=30,
-            )
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            # Extraer el texto de la respuesta de Gemini
-            result = data["candidates"][0]["content"]["parts"][0]["text"]
-            parsed = json.loads(result)
-            
+            res = await client.post(url, json=payload)
+            res.raise_for_status()
+
+            data = res.json()
+
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            cleaned = limpiar_json(text)
+
+            parsed = json.loads(cleaned)
+
             return AIClassificationResult(
                 classification=LifeFormCategory(
                     parsed.get("classification", "UNKNOWN_ORGANISM")
                 ),
-                danger_level=DangerLevel(parsed.get("danger_level", "UNKNOWN")),
+                danger_level=DangerLevel(
+                    parsed.get("danger_level", "UNKNOWN")
+                ),
                 confidence=float(parsed.get("confidence", 0.0)),
-                raw_response=result,
+                raw_response=cleaned,
             )
+
     except Exception as e:
-        print(f"Error en clasificación Gemini: {e}")
+        print(f"Error Gemini: {e}")
         return None
+    
 
 async def find_matching_entry(photo_url: str, entries: list) -> Optional[str]:
     return None

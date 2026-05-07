@@ -44,9 +44,11 @@ async def get_current_user(
         )
         user_id: str = payload.get("sub")
         if user_id is None:
+            print("Error decodificando JWT:", "No se encontró el campo 'sub' en el token")
             raise credentials_exception
         return payload
     except JWTError:
+        print("Error decodificando JWT:", JWTError)
         raise credentials_exception
 
 

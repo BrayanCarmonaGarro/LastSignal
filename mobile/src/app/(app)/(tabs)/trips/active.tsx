@@ -24,9 +24,19 @@ import { SupplyDropMarker } from "@/components/trips/markers/SupplyDropMarker";
 import { WaypointMarker } from "@/components/trips/markers/WaypointMarker";
 import { DangerZoneMarker } from "@/components/trips/markers/DangerZoneMarker";
 import { BaseOverlayMarker } from "@/components/trips/markers/BaseOverlayMarker";
-import { TripActionSheet, type SheetData } from "@/components/trips/TripActionSheet";
-import { useTripStore } from "@/store/tripStore";
+import {
+  TripActionSheet,
+  type SheetData,
+} from "@/components/trips/TripActionSheet";
+import { useTripStore, computeDropCost } from "@/store/tripStore";
 import type { SupplyDrop, TripDangerZone } from "@/store/tripStore";
+
+import { resourcesApi } from "@/services/api/resources.api";
+import type { InventoryResourceFull } from "@/types/trip_pack.types";
+
+import { TripPackHUD } from "@/components/trips/TripPackHUD";
+
+import { usersApi } from "@/services/api/users.api";
 
 // ─── CONSTANTES ───────────────────────────────────────
 const COLLECT_RADIUS_METERS = 300;
@@ -36,9 +46,21 @@ const DARK_MAP_STYLE = [
   { elementType: "geometry", stylers: [{ color: "#0d0d1a" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#8888aa" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#0a0a14" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#00d4ff22" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#050510" }] },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#1a1a2e" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#00d4ff22" }],
+  },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#050510" }],
+  },
   { featureType: "poi", stylers: [{ visibility: "off" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
 ];
@@ -46,7 +68,7 @@ const DARK_MAP_STYLE = [
 // ─── HELPER HAVERSINE ─────────────────────────────────
 function getDistanceMeters(
   a: { latitude: number; longitude: number },
-  b: { latitude: number; longitude: number }
+  b: { latitude: number; longitude: number },
 ) {
   const R = 6371000;
   const φ1 = (a.latitude * Math.PI) / 180;
@@ -54,8 +76,7 @@ function getDistanceMeters(
   const Δφ = ((b.latitude - a.latitude) * Math.PI) / 180;
   const Δλ = ((b.longitude - a.longitude) * Math.PI) / 180;
   const x =
-    Math.sin(Δφ / 2) ** 2 +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
@@ -72,18 +93,21 @@ export default function ActiveTripScreen() {
   const baseCoordinate = routePoints[0] ?? null;
 
   const [sheetData, setSheetData] = React.useState<SheetData | null>(null);
+
   const [userLocation, setUserLocation] = React.useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
 
+  const [mapReady, setMapReady] = React.useState(false);
+
   // Solo drops disponibles + recolectados en este viaje
   const currentTripDrops = useMemo(
     () =>
       supplyDrops.filter(
-        (d) => d.status === "AVAILABLE" || d.trip_id === activeTrip?.id
+        (d) => d.status === "AVAILABLE" || d.trip_id === activeTrip?.id,
       ),
-    [supplyDrops, activeTrip?.id]
+    [supplyDrops, activeTrip?.id],
   );
 
   const allMarkers = useMemo<OverlayMarker[]>(() => {
@@ -102,21 +126,21 @@ export default function ActiveTripScreen() {
       markers.push({
         id: `supply_${d.id}`,
         coordinate: { latitude: d.latitude, longitude: d.longitude },
-      })
+      }),
     );
 
     waypoints.forEach((wp) =>
       markers.push({
         id: `wp_${wp.id}`,
         coordinate: { latitude: wp.latitude, longitude: wp.longitude },
-      })
+      }),
     );
 
     dangerZones.forEach((dz) =>
       markers.push({
         id: `dz_${dz.id}`,
         coordinate: { latitude: dz.latitude, longitude: dz.longitude },
-      })
+      }),
     );
 
     return markers;
@@ -124,7 +148,25 @@ export default function ActiveTripScreen() {
 
   const { mapRef, positions, recalculate } = useMarkerOverlay(allMarkers);
 
+  const didMountRef = useRef(false);
+
+  // ─── UBICACIÓN INICIAL ────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      setMapReady(true);
+    })();
+  }, []);
+
   // ─── TRACKING DE POSICIÓN ─────────────────────────────
+  const didZoomRef = useRef(false);
+
   useEffect(() => {
     let sub: Location.LocationSubscription | null = null;
 
@@ -139,10 +181,17 @@ export default function ActiveTripScreen() {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
           };
-          setUserLocation(coords); // ← mantener ubicación en estado
+          setUserLocation(coords);
           logPosition(coords);
-          mapRef.current?.animateCamera({ center: coords }, { duration: 800 });
-        }
+
+          if (!didZoomRef.current) {
+            didZoomRef.current = true;
+            mapRef.current?.animateCamera(
+              { center: coords, zoom: 16 },
+              { duration: 800 },
+            );
+          }
+        },
       );
     })();
 
@@ -153,17 +202,57 @@ export default function ActiveTripScreen() {
 
   // ─── ALERTAS DE OXÍGENO ──────────────────────────────
   useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return; // ignorar el primer render
+    }
+
     if (oxygenStatus === "critical") {
       Alert.alert(
         "⚠️ OXÍGENO CRÍTICO",
         `Solo quedan ${minutesRemaining} minutos. Regresa a la nave inmediatamente.`,
-        [{ text: "Entendido" }]
+        [{ text: "Entendido" }],
       );
     }
+
     if (oxygenStatus === "empty") {
-      Alert.alert("🚨 OXÍGENO AGOTADO", "El viaje se ha terminado por seguridad.", [
-        { text: "OK", onPress: end },
-      ]);
+      // ── Pérdida: descartar tripPack sin transferir al inventario ──
+      const handleOxygenEmpty = async () => {
+        if (!activeTrip) return;
+
+        try {
+          const inventory = await resourcesApi.getAll();
+          const currentTripPack = useTripStore.getState().tripPack;
+
+          await Promise.allSettled(
+            currentTripPack.map((packItem) => {
+              const invItem = inventory.find(
+                (r) => r.id === packItem.base_resource_id,
+              );
+              if (!invItem || packItem.initial <= 0) return Promise.resolve();
+              return resourcesApi.addLog(
+                invItem.id,
+                "CONSUMPTION",
+                packItem.initial, // se pierde TODO lo que llevaba, no solo lo gastado
+                "Pérdida total por O₂ agotado",
+                activeTrip.id,
+              );
+            }),
+          );
+        } catch (err) {
+          console.error("[active] Error al registrar pérdida por O₂:", err);
+        } finally {
+          useTripStore.getState().clearTripPack();
+        }
+      };
+
+      Alert.alert(
+        "🚨 OXÍGENO AGOTADO",
+        "Has perdido todos los recursos que llevabas. El viaje ha terminado.",
+        [{ text: "OK", onPress: end }],
+      );
+
+      handleOxygenEmpty();
     }
   }, [oxygenStatus]);
 
@@ -172,18 +261,21 @@ export default function ActiveTripScreen() {
     setSheetData({
       variant: "confirm",
       title: "Finalizar viaje",
-      message: "¿Seguro que quieres terminar la exploración y regresar a la nave?",
+      message:
+        "¿Seguro que quieres terminar la exploración y regresar a la nave?",
       confirmLabel: "Terminar",
       confirmColor: "#ef4444",
       onConfirm: end,
     });
   }, [end]);
 
+  const spendTripResource = useTripStore((s) => s.spendTripResource);
+  const tripPack = useTripStore((s) => s.tripPack);
+
   const handleDropPress = useCallback(
     (drop: SupplyDrop) => {
       if (drop.collected_at) return;
 
-      // Verificar rango de recolección
       if (userLocation) {
         const dist = getDistanceMeters(userLocation, {
           latitude: drop.latitude,
@@ -206,28 +298,83 @@ export default function ActiveTripScreen() {
       setSheetData({
         variant: "supply",
         drop,
-        onCollect: (d) => collectDrop(d.id),
+        onCollect: async (d) => {
+          // 1. Descontar costo del tripPack en memoria
+          if (tripPack.length > 0) {
+            const cost = computeDropCost(d.items.length, d.id);
+            for (const c of cost) {
+              spendTripResource(c.base_resource_id, c.amount);
+            }
+
+            // 2. Registrar el gasto en el backend
+            try {
+              const inventory =
+                (await resourcesApi.getAll()) as unknown as InventoryResourceFull[];
+              await Promise.allSettled(
+                cost.map((c) => {
+                  const invItem = inventory.find(
+                    (r) => r.base_resource_id === c.base_resource_id,
+                  );
+                  if (!invItem) return Promise.resolve();
+                  return resourcesApi.addLog(
+                    invItem.id,
+                    "CONSUMPTION",
+                    c.amount,
+                    `Costo de apertura de suministro`,
+                    activeTrip?.id,
+                  );
+                }),
+              );
+            } catch (err) {
+              console.error("[active] Error al registrar gasto de drop:", err);
+              // No bloqueamos la recolección si falla
+            }
+          }
+
+          // 3. Recolectar el drop
+          collectDrop(d.id);
+
+          const xpByTier: Record<number, number> = { 1: 50, 2: 100 };
+          const xp =
+            d.items.length >= 3 ? 200 : (xpByTier[d.items.length] ?? 50);
+          usersApi.addXp(xp).catch(() => {}); // fire and forget
+        },
       });
     },
-    [collectDrop, userLocation]
+    [collectDrop, userLocation, tripPack, spendTripResource],
   );
 
   const handleWaypointPress = useCallback(
     (latitude: number, longitude: number) => {
       mapRef.current?.animateCamera(
         { center: { latitude, longitude }, zoom: 16 },
-        { duration: 600 }
+        { duration: 600 },
       );
     },
-    []
+    [],
   );
 
   const handleDangerZonePress = useCallback((zone: TripDangerZone) => {
     setSheetData({ variant: "danger", zone });
   }, []);
 
-  const collectedCount = currentTripDrops.filter((d) => d.status === "COLLECTED").length;
+  const collectedCount = currentTripDrops.filter(
+    (d) => d.status === "COLLECTED",
+  ).length;
   const totalSupplies = currentTripDrops.length;
+
+  // ─── UBICACIÓN INICIAL ────────────────────────────────
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      const location = await Location.getCurrentPositionAsync({});
+      setUserLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+    })();
+  }, []);
 
   // ─── RENDER ───────────────────────────────────────────
   const userPos = userLocation ? positions["__user__"] : null;
@@ -237,50 +384,35 @@ export default function ActiveTripScreen() {
       <StatusBar barStyle="light-content" />
 
       {/* Mapa */}
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
-        customMapStyle={DARK_MAP_STYLE}
-        showsUserLocation
-        showsMyLocationButton={false}
-        initialRegion={{
-          latitude: 9.9281,
-          longitude: -84.0907,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        onRegionChange={recalculate}
-        onLayout={recalculate}
-      >
-        {routePoints.length > 1 && (
-          <Polyline
-            coordinates={routePoints}
-            strokeColor="#00d4ff"
-            strokeWidth={2.5}
-            lineDashPattern={[8, 4]}
-          />
-        )}
-      </MapView>
+      {mapReady && userLocation && (
+        <MapView
+          ref={mapRef}
+          style={StyleSheet.absoluteFillObject}
+          customMapStyle={DARK_MAP_STYLE}
+          showsUserLocation
+          showsMyLocationButton={false}
+          initialRegion={{
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }}
+          onRegionChange={recalculate}
+          onLayout={recalculate}
+        >
+          {routePoints.length > 1 && (
+            <Polyline
+              coordinates={routePoints}
+              strokeColor="#00d4ff"
+              strokeWidth={2.5}
+              lineDashPattern={[8, 4]}
+            />
+          )}
+        </MapView>
+      )}
 
       {/* Overlay de markers */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-
-        {/* ── Círculo de rango de recolección ── */}
-        {userPos && (
-          <View
-            style={[
-              styles.collectRangeCircle,
-              {
-                width: COLLECT_RANGE_CIRCLE_SIZE,
-                height: COLLECT_RANGE_CIRCLE_SIZE,
-                borderRadius: COLLECT_RANGE_CIRCLE_SIZE / 2,
-                left: userPos.x - COLLECT_RANGE_CIRCLE_SIZE / 2,
-                top: userPos.y - COLLECT_RANGE_CIRCLE_SIZE / 2,
-              },
-            ]}
-          />
-        )}
-
         {/* Nave base */}
         {baseCoordinate && positions["__base__"] && (
           <BaseOverlayMarker
@@ -390,6 +522,8 @@ export default function ActiveTripScreen() {
             <Text style={styles.statLabel}>O₂ restante</Text>
           </View>
         </View>
+
+        <TripPackHUD />
 
         <TouchableOpacity
           style={[styles.endBtn, !canEnd && styles.endBtnDisabled]}

@@ -1,3 +1,4 @@
+// src/services/api/shipBases.api.ts
 import { apiRequest } from './client';
 
 export interface ShipBase {

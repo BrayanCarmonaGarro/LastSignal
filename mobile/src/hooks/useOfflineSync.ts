@@ -1,1 +1,0 @@
-// Detecta conexión y sincroniza

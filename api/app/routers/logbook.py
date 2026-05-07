@@ -1,11 +1,12 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
+from app.services.rag_service import get_similar_entries, index_new_entry
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user, resolve_db_user
-from app.models.logbook import LogbookEntry, LifeFormSearch
+from app.models.logbook import LogbookEntry, LifeFormSearch, LifeFormCategory, DangerLevel
 from app.schemas.logbook import (
     LogbookEntryCreate,
     LogbookEntryResponse,
@@ -20,15 +21,22 @@ router = APIRouter(prefix="/logbook", tags=["Bitácora"])
 
 @router.get("", response_model=List[LogbookEntryResponse])
 async def list_entries(
-    skip: int = Query(0, ge=0),
+    page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    classification: Optional[LifeFormCategory] = Query(None),
+    danger: Optional[DangerLevel] = Query(None),
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     user = await resolve_db_user(current_user, db)
+    skip = (page - 1) * limit
+    query = db.query(LogbookEntry).filter(LogbookEntry.user_id == user.id)
+    if classification:
+        query = query.filter(LogbookEntry.classification == classification)
+    if danger:
+        query = query.filter(LogbookEntry.danger_level == danger)
     return (
-        db.query(LogbookEntry)
-        .filter(LogbookEntry.user_id == user.id)
+        query
         .order_by(LogbookEntry.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -46,11 +54,13 @@ async def create_entry(
 
     ai_result = await classify_life_form(entry.photo_url, entry.description)
 
+    similar_records = get_similar_entries(entry.description)
+
     db_entry = LogbookEntry(
         photo_url=entry.photo_url,
         description=entry.description,
-        classification=ai_result.classification if ai_result else entry.classification,
-        danger_level=ai_result.danger_level if ai_result else entry.danger_level,
+        classification=entry.classification,
+        danger_level=entry.danger_level,
         ai_confidence=ai_result.confidence if ai_result else None,
         ai_raw_response=ai_result.raw_response if ai_result else None,
         user_id=user.id,
@@ -59,10 +69,16 @@ async def create_entry(
     db.commit()
     db.refresh(db_entry)
 
+    index_new_entry(
+        text=db_entry.description, 
+        metadata={"id": str(db_entry.id), "user_id": str(user.id)}
+    )
+
     check_and_award_achievements(str(user.id), db)
 
-    return db_entry
-
+    data = LogbookEntryResponse.model_validate(db_entry, from_attributes=True)
+    data.similar_findings = similar_records
+    return data
 
 @router.get("/{entry_id}", response_model=LogbookEntryResponse)
 async def get_entry(

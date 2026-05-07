@@ -53,3 +53,6 @@ class DashboardResponse(BaseModel):
     recent_achievements: list
     resource_groups: list[ResourceCategoryGroup]
     recent_logbook_entries: list
+
+class AddXpRequest(BaseModel):
+    amount: int

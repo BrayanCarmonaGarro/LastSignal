@@ -34,6 +34,7 @@ class LogbookEntryResponse(BaseModel):
     downloaded_until: Optional[datetime] = None
     created_at: datetime
     user_id: UUID
+    similar_findings: list[str] = []  # Nuevo campo para incluir hallazgos similares
 
     class Config:
         from_attributes = True

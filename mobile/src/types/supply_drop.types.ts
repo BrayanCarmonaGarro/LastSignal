@@ -1,3 +1,4 @@
+// src/types/supply_drop.types.ts
 import type { BaseResource } from './resource.types';
 
 export type SupplyDropStatus = 'AVAILABLE' | 'COLLECTED';

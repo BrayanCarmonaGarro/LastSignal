@@ -15,18 +15,25 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
+
 import { useTheme } from '@/constants/theme';
 import { CLASSIFICATION_LABELS, DANGER_LABELS } from '@/constants/labels';
 import { relativeTime } from '@/utils/formatters';
 import { logbookApi } from '@/services/api/logbook.api';
+import { aiApi } from '@/services/api/ai.api';
 import { buildFileUrl } from '@/services/api/client';
-import { ClassificationBadge } from '@/components/logbook/ClassificationBadge';
-import type { LogbookEntry } from '@/types/logbook.types';
+import type { LogbookEntry, SyncStatus } from '@/types/logbook.types';
 
-const HERO_HEIGHT   = 280;
+const HERO_HEIGHT   = 300;
 const WAVEFORM_BARS = 40;
 
-// Deterministic bar heights from the audio URL string
+const SYNC_LABELS: Record<SyncStatus, string> = {
+  SYNCED:  'SINCRONIZADO',
+  PENDING: 'PENDIENTE',
+  FAILED:  'FALLIDO',
+};
+
 function waveBars(seed: string): number[] {
   const bars: number[] = [];
   for (let i = 0; i < WAVEFORM_BARS; i++) {
@@ -40,17 +47,18 @@ export default function LogbookDetailScreen() {
   const { id }   = useLocalSearchParams<{ id: string }>();
   const router   = useRouter();
   const insets   = useSafeAreaInsets();
-  const { colors, fonts, fontSizes, spacing, radii, borderWidths, iconSizes, dangerColors } =
-    useTheme();
+  const { colors, classificationColors, fonts, spacing, radii, borderWidths, dangerColors } = useTheme();
 
   const [entry,        setEntry]        = useState<LogbookEntry | null>(null);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState<string | null>(null);
   const [isPlaying,    setIsPlaying]    = useState(false);
-  const [playProgress, setPlayProgress] = useState(0); // 0–1
-  const soundRef      = useRef<Audio.Sound | null>(null);
-  const confAnim      = useRef(new Animated.Value(0)).current;
-  // Load entry
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [playProgress, setPlayProgress] = useState(0);
+
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const confAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     (async () => {
       try {
@@ -65,7 +73,6 @@ export default function LogbookDetailScreen() {
     return () => { soundRef.current?.unloadAsync(); };
   }, [id]);
 
-  // Animate confidence bar when entry loads
   useEffect(() => {
     if (entry?.ai_confidence != null) {
       Animated.timing(confAnim, {
@@ -76,40 +83,68 @@ export default function LogbookDetailScreen() {
     }
   }, [entry?.ai_confidence]);
 
-
   const handlePlayAudio = useCallback(async () => {
-    if (!entry?.audio_url) return;
+    if (!entry) return;
     try {
       if (soundRef.current) {
-        if (isPlaying) {
-          await soundRef.current.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          await soundRef.current.playAsync();
-          setIsPlaying(true);
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          if (status.isPlaying) {
+            await soundRef.current.pauseAsync();
+            setIsPlaying(false);
+          } else {
+            await soundRef.current.playAsync();
+            setIsPlaying(true);
+          }
+          return;
         }
-        return;
       }
+
+      let finalUri = entry.audio_url;
+
+      if (!finalUri) {
+        setIsGenerating(true);
+        const cachePath = `${FileSystem.cacheDirectory}speech_${entry.id}.wav`;
+        const fileInfo  = await FileSystem.getInfoAsync(cachePath);
+
+        if (!fileInfo.exists) {
+          const blob = await aiApi.generateAudio(entry.description);
+          if (blob.size < 100) throw new Error('El servidor devolvió un archivo demasiado pequeño.');
+
+          const base64Data = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+          await FileSystem.writeAsStringAsync(cachePath, base64Data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+
+        finalUri = cachePath;
+      }
+
       const { sound } = await Audio.Sound.createAsync(
-        { uri: entry.audio_url },
+        { uri: finalUri },
         { shouldPlay: true },
         (status) => {
-          if (!status.isLoaded) return;
-          if (status.durationMillis) {
-            setPlayProgress(status.positionMillis / status.durationMillis);
+          if (status.isLoaded) {
+            if (status.durationMillis) setPlayProgress(status.positionMillis / status.durationMillis);
+            if (status.didJustFinish) { setIsPlaying(false); setPlayProgress(0); }
           }
-          if (status.didJustFinish) {
-            setIsPlaying(false);
-            setPlayProgress(0);
-          }
-        },
+        }
       );
+
       soundRef.current = sound;
       setIsPlaying(true);
-    } catch {
-      Alert.alert('Error', 'No se pudo reproducir el audio.');
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo reproducir el audio. Verifica la conexión con el servidor.');
+    } finally {
+      setIsGenerating(false);
     }
-  }, [entry?.audio_url, isPlaying]);
+  }, [entry]);
 
   const handleShare = useCallback(async () => {
     if (!entry) return;
@@ -119,20 +154,9 @@ export default function LogbookDetailScreen() {
     });
   }, [entry]);
 
-  const handleDownload = useCallback(async () => {
-    if (!entry) return;
-    try {
-      await logbookApi.downloadEntry(entry.id);
-      Alert.alert('Disponible offline', 'Esta entrada ya está guardada en tu dispositivo.');
-      setEntry((prev) => prev ? { ...prev, is_downloaded: true } : prev);
-    } catch (e: unknown) {
-      Alert.alert('Error', (e as Error).message ?? 'No se pudo descargar la entrada.');
-    }
-  }, [entry]);
-
   if (loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bgPrimary, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: colors.bgPrimary, justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -141,395 +165,229 @@ export default function LogbookDetailScreen() {
   if (error || !entry) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bgPrimary, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
-        <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.body, color: colors.danger, textAlign: 'center' }}>
-          {error ?? 'Entrada no encontrada'}
-        </Text>
+        <Text style={{ fontFamily: fonts.body, color: colors.danger }}>{error ?? 'Data corrupta'}</Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: spacing.md }}>
-          <Text style={{ fontFamily: fonts.heading, fontSize: fontSizes.caption, color: colors.primary }}>
-            Volver
-          </Text>
+          <Text style={{ fontFamily: fonts.heading, color: colors.primary }}>Abortar misión</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const dColors      = dangerColors[entry.danger_level] ?? dangerColors.UNKNOWN;
-  const classLabel   = CLASSIFICATION_LABELS[entry.classification] ?? entry.classification;
-  const dangerLabel  = DANGER_LABELS[entry.danger_level] ?? entry.danger_level;
-  const bars         = entry.audio_url ? waveBars(entry.audio_url) : [];
-  const confPercent  = entry.ai_confidence != null ? Math.round(entry.ai_confidence * 100) : null;
+  const dColors   = dangerColors[entry.danger_level]          ?? dangerColors.UNKNOWN;
+  const clsColors = classificationColors[entry.classification] ?? classificationColors.UNKNOWN_ORGANISM;
+  const bars      = waveBars(entry.audio_url || entry.description);
 
-  const syncBadge = () => {
-    const map = {
-      SYNCED:  { color: colors.textSuccess,  label: 'SINCRONIZADO' },
-      PENDING: { color: colors.primaryLight, label: 'PENDIENTE'    },
-      FAILED:  { color: colors.danger,       label: 'ERROR SYNC'   },
-    };
-    const s = map[entry.sync_status];
-    return (
-      <Animated.View
-        style={[
-          {
-            borderRadius: radii.full,
-            borderWidth: 1,
-            borderColor: `${s.color}66`,
-            backgroundColor: `${s.color}1A`,
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 2,
-          },
-          {},
-        ]}
-      >
-        <Text style={{ fontFamily: fonts.mono, fontSize: fontSizes.micro, color: s.color, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-          {s.label}
-        </Text>
-      </Animated.View>
-    );
+  const syncAccent = entry.sync_status === 'SYNCED'
+    ? colors.textSuccess
+    : entry.sync_status === 'FAILED'
+    ? colors.danger
+    : colors.primary;
+
+  const badgePill = {
+    height:            28,
+    borderRadius:      radii.full,
+    borderWidth:       borderWidths.base,
+    alignItems:        'center'  as const,
+    justifyContent:    'center'  as const,
+    paddingHorizontal: spacing.sm,
+  };
+
+  const badgeLabelTxt = {
+    fontFamily:    fonts.mono,
+    fontSize:      9,
+    letterSpacing: 1.5,
+    color:         colors.textMuted,
+    marginBottom:  4,
+  };
+
+  const badgeTxt = {
+    fontFamily:    fonts.mono,
+    fontSize:      10,
+    letterSpacing: 0.5,
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
-        stickyHeaderIndices={[]}
-      >
-        {/* Hero image */}
-        <View style={{ height: HERO_HEIGHT, backgroundColor: colors.bgTertiary }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}>
+
+        {/* ── Hero ── */}
+        <View style={{ height: HERO_HEIGHT }}>
           <Image
             source={{ uri: buildFileUrl(entry.photo_url) }}
             style={{ width: '100%', height: HERO_HEIGHT }}
             resizeMode="cover"
           />
-          {/* SVG gradient overlay */}
-          <View style={{ position: 'absolute', inset: 0 } as any}>
-            <Svg width="100%" height={HERO_HEIGHT}>
-              <Defs>
-                <LinearGradient id="hero" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0.5" stopColor={colors.bgPrimary} stopOpacity={0} />
-                  <Stop offset="1"   stopColor={colors.bgPrimary} stopOpacity={1} />
-                </LinearGradient>
-              </Defs>
-              <Rect x="0" y="0" width="100%" height={HERO_HEIGHT} fill="url(#hero)" />
-            </Svg>
-          </View>
-
+          {/* Gradient fade toward page background */}
+          <Svg style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }} height={110} width="100%">
+            <Defs>
+              <LinearGradient id="heroFade" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={colors.bgPrimary} stopOpacity="0" />
+                <Stop offset="1" stopColor={colors.bgPrimary} stopOpacity="1" />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="110" fill="url(#heroFade)" />
+          </Svg>
           {/* Back button */}
           <TouchableOpacity
             onPress={() => router.back()}
             style={{
-              position: 'absolute',
-              top: insets.top + spacing.md,
-              left: spacing.lg,
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: `${colors.bgPrimary}B3`,
-              alignItems: 'center',
-              justifyContent: 'center',
+              position:        'absolute',
+              top:             insets.top + spacing.md,
+              left:            spacing.lg,
+              width:           40,
+              height:          40,
+              borderRadius:    20,
+              backgroundColor: 'rgba(0,0,0,0.50)',
+              alignItems:      'center',
+              justifyContent:  'center',
             }}
           >
-            <Ionicons name="arrow-back" size={iconSizes.md} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-
-          {/* Audio shortcut (top-right) */}
-          {entry.audio_url && (
-            <TouchableOpacity
-              onPress={handlePlayAudio}
-              style={{
-                position: 'absolute',
-                top: insets.top + spacing.md,
-                right: spacing.lg,
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: `${colors.bgPrimary}B3`,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons name={isPlaying ? 'pause' : 'volume-high'} size={iconSizes.md} color="#fff" />
-            </TouchableOpacity>
-          )}
         </View>
 
-        {/* Scrollable content */}
-        <View style={{ paddingHorizontal: spacing.lg, marginTop: -spacing.xl }}>
-          {/* Drag handle */}
-          <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
-            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.bgTertiary }} />
-          </View>
+        {/* ── Content ── */}
+        <View style={{ padding: spacing.lg }}>
 
-          {/* Identity */}
-          <Text
-            style={{
-              fontFamily: fonts.mono,
-              fontSize: 10,
-              color: colors.textMuted,
-              letterSpacing: 2,
-              textTransform: 'uppercase',
-              marginBottom: spacing.xs,
-            }}
-          >
+          {/* Category subtitle */}
+          <Text style={{ fontFamily: fonts.mono, fontSize: 10, letterSpacing: 2, color: colors.textMuted, marginBottom: 6 }}>
             FORMA DE VIDA · {entry.classification}
           </Text>
 
-          <Text
-            style={{
-              fontFamily: fonts.display,
-              fontSize: fontSizes.display,
-              color: colors.textPrimary,
-              letterSpacing: 0.5,
-              lineHeight: fontSizes.display * 1.1,
-              marginBottom: spacing.md,
-            }}
-          >
-            {classLabel}
+          {/* Title */}
+          <Text style={{ fontFamily: fonts.display, fontSize: 32, color: colors.textPrimary, marginBottom: spacing.lg }}>
+            {CLASSIFICATION_LABELS[entry.classification] ?? entry.classification}
           </Text>
 
-          {/* Badges row */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
-            <ClassificationBadge classification={entry.classification} />
-            <View
-              style={{
-                borderRadius: radii.full,
-                borderWidth: 1,
-                borderColor: `${dColors.border}66`,
-                backgroundColor: `${dColors.bg}`,
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 2,
-              }}
-            >
-              <Text style={{ fontFamily: fonts.heading, fontSize: 11, color: dColors.text, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                {dangerLabel}
-              </Text>
+          {/* ── Badges row (equal-width columns) ── */}
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+
+            {/* TIPO */}
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={badgeLabelTxt}>TIPO</Text>
+              <View style={{ ...badgePill, alignSelf: 'stretch', backgroundColor: clsColors.border, borderColor: clsColors.border }}>
+                <Text style={{ ...badgeTxt, color: '#FFFFFF' }} numberOfLines={1} adjustsFontSizeToFit>
+                  {(CLASSIFICATION_LABELS[entry.classification] ?? entry.classification).toUpperCase()}
+                </Text>
+              </View>
             </View>
-            {syncBadge()}
+
+            {/* PELIGRO */}
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={badgeLabelTxt}>PELIGRO</Text>
+              <View style={{ ...badgePill, alignSelf: 'stretch', backgroundColor: dColors.border, borderColor: dColors.border }}>
+                <Text style={{ ...badgeTxt, color: '#FFFFFF' }} numberOfLines={1} adjustsFontSizeToFit>
+                  {(DANGER_LABELS[entry.danger_level] ?? entry.danger_level).toUpperCase()}
+                </Text>
+              </View>
+            </View>
+
+            {/* SYNC */}
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={badgeLabelTxt}>SYNC</Text>
+              <View style={{ ...badgePill, alignSelf: 'stretch', backgroundColor: syncAccent, borderColor: syncAccent }}>
+                <Text style={{ ...badgeTxt, color: '#FFFFFF' }} numberOfLines={1} adjustsFontSizeToFit>
+                  {SYNC_LABELS[entry.sync_status]}
+                </Text>
+              </View>
+            </View>
+
           </View>
 
-          <Text
-            style={{
-              fontFamily: fonts.mono,
-              fontSize: 11,
-              color: colors.textMuted,
-              marginBottom: spacing.xl,
-            }}
-          >
+          {/* Relative time */}
+          <Text style={{ fontFamily: fonts.mono, fontSize: 10, color: colors.textMuted, marginBottom: spacing.xl }}>
             {relativeTime(entry.created_at)}
           </Text>
 
-          {/* AI Analysis card */}
-          <View
-            style={{
-              backgroundColor: colors.bgSecondary,
-              borderRadius: radii.xl,
-              borderWidth: borderWidths.base,
-              borderColor: colors.borderDefault,
-              padding: spacing.md,
-              marginBottom: spacing.md,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-              <Ionicons name="hardware-chip-outline" size={iconSizes.sm} color={colors.primaryLight} />
-              <Text
-                style={{
-                  fontFamily: fonts.heading,
-                  fontSize: 14,
-                  color: colors.textPrimary,
-                  marginLeft: spacing.xs,
-                  flex: 1,
-                }}
-              >
-                ANÁLISIS IA
+          {/* ── AI Probability card ── */}
+          <View style={{ backgroundColor: colors.bgSecondary, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+              <Text style={{ fontFamily: fonts.heading, color: colors.textPrimary, fontSize: 12 }}>PROBABILIDAD IA</Text>
+              <Text style={{ fontFamily: fonts.mono, color: colors.primary }}>
+                {Math.round((entry.ai_confidence ?? 0) * 100)}%
               </Text>
-              {confPercent != null && (
-                <Text style={{ fontFamily: fonts.mono, fontSize: 12, color: colors.primary }}>
-                  {confPercent}% CONFIANZA
-                </Text>
-              )}
             </View>
-
-            {/* Confidence bar */}
-            {confPercent != null && (
-              <View
+            <View style={{ height: 4, backgroundColor: colors.bgTertiary, borderRadius: 2 }}>
+              <Animated.View
                 style={{
-                  height: 6,
-                  backgroundColor: colors.bgTertiary,
-                  borderRadius: 3,
-                  marginBottom: spacing.md,
-                  overflow: 'hidden',
+                  height:          '100%',
+                  backgroundColor: colors.primary,
+                  borderRadius:    2,
+                  width:           confAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
                 }}
-              >
-                <Animated.View
-                  style={{
-                    height: 6,
-                    borderRadius: 3,
-                    backgroundColor: colors.primary,
-                    width: confAnim.interpolate({
-                      inputRange:  [0, 1],
-                      outputRange: ['0%', '100%'],
-                    }),
-                  }}
-                />
-              </View>
-            )}
-
-            {entry.is_ai_reviewed && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                <Ionicons name="checkmark-circle" size={14} color={colors.textSuccess} />
-                <Text style={{ fontFamily: fonts.body, fontSize: 12, color: colors.textSuccess }}>
-                  Verificado por el comandante
-                </Text>
-              </View>
-            )}
+              />
+            </View>
           </View>
 
-          {/* Description card */}
-          <View
-            style={{
-              backgroundColor: colors.bgSecondary,
-              borderRadius: radii.xl,
-              borderWidth: borderWidths.base,
-              borderColor: colors.borderDefault,
-              padding: spacing.md,
-              marginBottom: spacing.md,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: fonts.mono,
-                fontSize: 9,
-                color: colors.textMuted,
-                textTransform: 'uppercase',
-                letterSpacing: 1.5,
-                marginBottom: spacing.sm,
-              }}
-            >
-              DESCRIPCIÓN
-            </Text>
-            <Text
-              style={{
-                fontFamily: fonts.body,
-                fontSize: 14,
-                color: colors.textPrimary,
-                lineHeight: 22,
-              }}
-            >
+          {/* ── Field notes ── */}
+          <View style={{ backgroundColor: colors.bgSecondary, borderRadius: radii.xl, padding: spacing.md, marginBottom: spacing.xl }}>
+            <Text style={{ fontFamily: fonts.body, color: colors.textPrimary, lineHeight: 22 }}>
               {entry.description}
             </Text>
           </View>
 
-          {/* Audio card */}
-          {entry.audio_url && (
-            <View
-              style={{
-                backgroundColor: colors.bgSecondary,
-                borderRadius: radii.xl,
-                borderWidth: borderWidths.base,
-                borderColor: colors.borderDefault,
-                padding: spacing.md,
-                marginBottom: spacing.md,
-              }}
-            >
-              <Text
-                style={{
-                  fontFamily: fonts.mono,
-                  fontSize: 9,
-                  color: colors.textMuted,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.5,
-                  marginBottom: spacing.sm,
-                }}
-              >
-                NARRACIÓN
-              </Text>
-
-              {/* Waveform */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', height: 40, gap: 2, marginBottom: spacing.md }}>
-                {bars.map((h, i) => {
-                  const played = i / WAVEFORM_BARS < playProgress;
-                  return (
-                    <View
-                      key={i}
-                      style={{
-                        flex: 1,
-                        height: h,
-                        borderRadius: 2,
-                        backgroundColor: colors.textSuccess,
-                        opacity: played ? 1 : 0.3,
-                      }}
-                    />
-                  );
-                })}
-              </View>
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                <TouchableOpacity
-                  onPress={handlePlayAudio}
+          {/* ── Waveform / Audio ── */}
+          <View style={{ backgroundColor: colors.bgSecondary, borderRadius: radii.xl, padding: spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', height: 30, gap: 2, marginBottom: spacing.md }}>
+              {bars.map((h, i) => (
+                <View
+                  key={i}
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    borderWidth: 1.5,
-                    borderColor: colors.textSuccess,
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    flex:            1,
+                    height:          h,
+                    borderRadius:    1,
+                    backgroundColor: colors.textSuccess,
+                    opacity:         i / WAVEFORM_BARS < playProgress ? 1 : 0.2,
                   }}
-                >
-                  <Ionicons
-                    name={isPlaying ? 'pause' : 'play'}
-                    size={iconSizes.md}
-                    color={colors.textSuccess}
-                  />
-                </TouchableOpacity>
-                <Text style={{ flex: 1 }} />
-                <Text style={{ fontFamily: fonts.mono, fontSize: 11, color: colors.textMuted }}>
-                  {isPlaying ? `${Math.round(playProgress * 100)}%` : '—:—'}
-                </Text>
-              </View>
+                />
+              ))}
             </View>
-          )}
+
+            <TouchableOpacity
+              onPress={handlePlayAudio}
+              disabled={isGenerating}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+            >
+              <View style={{
+                width:         44,
+                height:        44,
+                borderRadius:  22,
+                borderWidth:   borderWidths.base,
+                borderColor:   colors.textSuccess,
+                alignItems:    'center',
+                justifyContent:'center',
+              }}>
+                {isGenerating
+                  ? <ActivityIndicator size="small" color={colors.textSuccess} />
+                  : <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={colors.textSuccess} />
+                }
+              </View>
+              <Text style={{ fontFamily: fonts.mono, color: colors.textSuccess, fontSize: 12 }}>
+                {isGenerating ? 'PROCESANDO NARRACIÓN...' : isPlaying ? 'REPRODUCIENDO...' : 'ESCUCHAR ANÁLISIS'}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
         </View>
       </ScrollView>
 
-      {/* Sticky bottom actions */}
-      <View
-        style={{
-          position: 'absolute',
-          bottom: insets.bottom,
-          left: 0,
-          right: 0,
-          height: 56,
-          backgroundColor: `${colors.bgSecondary}F2`,
-          borderTopWidth: borderWidths.thin,
-          borderTopColor: colors.borderDefault,
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
-      >
-        <TouchableOpacity
-          onPress={handleShare}
-          activeOpacity={0.75}
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.sm, gap: 3 }}
-        >
-          <Ionicons name="share-outline" size={iconSizes.md} color={colors.textSecondary} />
-          <Text style={{ fontFamily: fonts.caption, fontSize: fontSizes.micro, color: colors.textMuted }}>
-            Compartir
-          </Text>
+      {/* ── Footer ── */}
+      <View style={{
+        position:        'absolute',
+        bottom:          insets.bottom,
+        left:            0,
+        right:           0,
+        height:          60,
+        borderTopWidth:  borderWidths.base,
+        borderColor:     colors.borderDefault,
+        flexDirection:   'row',
+        backgroundColor: colors.bgPrimary,
+      }}>
+        <TouchableOpacity onPress={handleShare} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="share-outline" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
-
-        <View style={{ flex: 1 }} />
-
-        <TouchableOpacity
-          onPress={handlePlayAudio}
-          activeOpacity={0.75}
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: spacing.sm, gap: 3 }}
-        >
-          <Ionicons name="volume-high-outline" size={iconSizes.md} color={colors.textSecondary} />
-          <Text style={{ fontFamily: fonts.caption, fontSize: fontSizes.micro, color: colors.textMuted }}>
-            Audio
-          </Text>
+        <TouchableOpacity style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="bookmark-outline" size={24} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
     </View>
