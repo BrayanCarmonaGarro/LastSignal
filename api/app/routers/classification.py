@@ -147,6 +147,7 @@ async def search_entries_rag(
             connection_string=CONNECTION_STRING,
             embedding_function=embeddings,
             collection_name="logbook_embeddings",
+            distance_strategy="cosine"
         )
 
         docs = vector_store.similarity_search(req.query, k=5)

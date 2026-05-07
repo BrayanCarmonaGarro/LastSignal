@@ -1,33 +1,43 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system/legacy';
+  Alert,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import * as FileSystem from "expo-file-system/legacy";
 
-import { useTheme } from '@/constants/theme';
-import { CLASSIFICATION_LABELS } from '@/constants/labels';
-import { useLogbook } from '@/hooks/useLogbook';
-import { useNetworkStatus } from '@/hooks/offline/useNetworkStatus';
-import { useToast } from '@/context/ToastContext';
-import { aiApi } from '@/services/api/ai.api';
-import { LogbookCard } from '@/components/logbook/LogbookCard';
-import { LogbookSkeletonCard } from '@/components/logbook/LogbookSkeletonCard';
-import { LogbookEmptyState } from '@/components/logbook/LogbookEmptyState';
-import { LogbookSearchBar } from '@/components/logbook/LogbookSearchBar';
-import { LogbookFilterChips, type FilterKey } from '@/components/logbook/LogbookFilterChips';
-import { LogbookActionSheet } from '@/components/logbook/LogbookActionSheet';
-import type { LogbookEntry } from '@/types/logbook.types';
+import { useTheme } from "@/constants/theme";
+import { CLASSIFICATION_LABELS } from "@/constants/labels";
+import { useLogbook } from "@/hooks/useLogbook";
+import { useNetworkStatus } from "@/hooks/offline/useNetworkStatus";
+import { useToast } from "@/context/ToastContext";
+import { aiApi } from "@/services/api/ai.api";
+import { LogbookCard } from "@/components/logbook/LogbookCard";
+import { LogbookSkeletonCard } from "@/components/logbook/LogbookSkeletonCard";
+import { LogbookEmptyState } from "@/components/logbook/LogbookEmptyState";
+import { LogbookSearchBar } from "@/components/logbook/LogbookSearchBar";
+import {
+  LogbookFilterChips,
+  type FilterKey,
+} from "@/components/logbook/LogbookFilterChips";
+import { LogbookActionSheet } from "@/components/logbook/LogbookActionSheet";
+import type { LogbookEntry } from "@/types/logbook.types";
 
 export default function LogbookScreen() {
   const { colors, fonts, fontSizes, spacing } = useTheme();
-  const router  = useRouter();
+  const router = useRouter();
 
   const {
     entries,
@@ -51,15 +61,16 @@ export default function LogbookScreen() {
   const { isConnected } = useNetworkStatus();
   const { showToast } = useToast();
 
-  const [search, setSearch] = useState('');
-  const [activeChip, setActiveChip] = useState<FilterKey>('ALL');
+  const [search, setSearch] = useState("");
+  const [activeChip, setActiveChip] = useState<FilterKey>("ALL");
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   useEffect(() => {
-    if (downloadAllDone) showToast('Bitácora descargada para uso offline', 'success');
+    if (downloadAllDone)
+      showToast("Bitácora descargada para uso offline", "success");
   }, [downloadAllDone]);
 
   useEffect(() => {
-    if (downloadAllError) showToast('Error al descargar la bitácora', 'error');
+    if (downloadAllError) showToast("Error al descargar la bitácora", "error");
   }, [downloadAllError]);
   const [actionEntry, setActionEntry] = useState<LogbookEntry | null>(null);
 
@@ -91,13 +102,14 @@ export default function LogbookScreen() {
 
         if (!fileInfo.exists) {
           const blob = await aiApi.generateAudio(entry.description);
-          if (blob.size < 100) { 
-              throw new Error("Audio corrupto");
+          if (blob.size < 100) {
+            throw new Error("Audio corrupto");
           }
 
           const base64Data = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
-            reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+            reader.onloadend = () =>
+              resolve((reader.result as string).split(",")[1]);
             reader.onerror = reject;
             reader.readAsDataURL(blob);
           });
@@ -111,13 +123,13 @@ export default function LogbookScreen() {
 
       const { sound } = await Audio.Sound.createAsync(
         { uri: finalUri },
-        { shouldPlay: true }
+        { shouldPlay: true },
       );
 
       soundRef.current = sound;
     } catch (e) {
       console.error(e);
-      Alert.alert('Error', 'No se pudo reproducir el análisis de voz.');
+      Alert.alert("Error", "No se pudo reproducir el análisis de voz.");
     } finally {
       setIsGenerating(null);
     }
@@ -125,20 +137,14 @@ export default function LogbookScreen() {
 
   const handleChipChange = (key: FilterKey) => {
     setActiveChip(key);
-    if (key === 'ALL')        setFilter({});
-    else if (key === 'PELIGROSAS') setFilter({ danger: 'DANGEROUS' });
-    else                      setFilter({ classification: key as any });
+    if (key === "ALL") setFilter({});
+    else if (key === "PELIGROSAS") setFilter({ danger: "DANGEROUS" });
+    else setFilter({ classification: key as any });
   };
 
   const filtered = useMemo(() => {
     const safe = entries ?? [];
-    if (!search.trim()) return safe;
-    const q = search.toLowerCase();
-    return safe.filter(
-      (e) =>
-        e.description.toLowerCase().includes(q) ||
-        (CLASSIFICATION_LABELS[e.classification] ?? '').toLowerCase().includes(q),
-    );
+    return safe;
   }, [entries, search]);
 
   const handleSearchSubmit = () => {
@@ -162,7 +168,7 @@ export default function LogbookScreen() {
         onDelete={() => deleteEntry(item.id)}
       />
     ),
-    [router, deleteEntry, isGenerating]
+    [router, deleteEntry, isGenerating],
   );
 
   const keyExtractor = useCallback((item: LogbookEntry) => item.id, []);
@@ -170,7 +176,7 @@ export default function LogbookScreen() {
   const ListFooter = () => {
     if (!isLoadingMore) return null;
     return (
-      <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+      <View style={{ paddingVertical: spacing.lg, alignItems: "center" }}>
         <ActivityIndicator size="small" color={colors.primary} />
       </View>
     );
@@ -185,14 +191,20 @@ export default function LogbookScreen() {
   );
 
   const handleClearSearch = () => {
-    setSearch('');
-    refresh(); 
+    setSearch("");
+    refresh();
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bgPrimary }}>
-      <View style={{ paddingTop: 16, paddingBottom: 12, paddingHorizontal: spacing.lg }}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+      <View
+        style={{
+          paddingTop: 16,
+          paddingBottom: 12,
+          paddingHorizontal: spacing.lg,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
           <Text
             style={{
               flex: 1,
@@ -213,9 +225,17 @@ export default function LogbookScreen() {
             {isDownloadingAll ? (
               <ActivityIndicator size="small" color={colors.textSecondary} />
             ) : downloadAllDone ? (
-              <Ionicons name="checkmark-circle" size={22} color={colors.textSuccess} />
+              <Ionicons
+                name="checkmark-circle"
+                size={22}
+                color={colors.textSuccess}
+              />
             ) : (
-              <Ionicons name="download-outline" size={22} color={colors.textSecondary} />
+              <Ionicons
+                name="download-outline"
+                size={22}
+                color={colors.textSecondary}
+              />
             )}
           </TouchableOpacity>
         </View>
@@ -235,58 +255,101 @@ export default function LogbookScreen() {
       </View>
 
       <View style={{ marginTop: 8 }}>
-        <LogbookSearchBar 
+        <LogbookSearchBar
           value={search}
           onChangeText={setSearch}
           onSubmit={handleSearchSubmit}
-          isLoading={isSearchingRAG} 
+          isLoading={isSearchingRAG}
           onClear={handleClearSearch}
         />
         <LogbookFilterChips active={activeChip} onChange={handleChipChange} />
       </View>
 
       <View style={{ flex: 1, marginTop: 12 }}>
-      {(isLoading || isSearchingRAG) && !isRefreshing ? (
-        <SkeletonList />
-      ) : error && isConnected !== false ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg }}>
-          <Text style={{ fontFamily: fonts.body, fontSize: fontSizes.body, color: colors.danger, textAlign: 'center' }}>
-            {error}
-          </Text>
-          <TouchableOpacity onPress={refresh} style={{ marginTop: spacing.md }}>
-            <Text style={{ fontFamily: fonts.heading, fontSize: fontSizes.caption, color: colors.primary }}>
-              Reintentar
+        {(isLoading || isSearchingRAG) && !isRefreshing ? (
+          <SkeletonList />
+        ) : error && isConnected !== false ? (
+          <View
+            style={{
+              flex: 1,
+              alignItems: "center",
+              justifyContent: "center",
+              padding: spacing.lg,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: fonts.body,
+                fontSize: fontSizes.body,
+                color: colors.danger,
+                textAlign: "center",
+              }}
+            >
+              {error}
             </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList<LogbookEntry>
-          data={filtered}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          onRefresh={refresh}
-          refreshing={isRefreshing}
-          onEndReached={() => { if (!search.trim()) loadMore(); }}
-          onEndReachedThreshold={0.3}
-          ListHeaderComponent={
-            cameFromCache ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.sm }}>
-                <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-                <Text style={{ fontFamily: fonts.caption, fontSize: fontSizes.caption, color: colors.textMuted }}>
-                  Mostrando datos guardados
-                </Text>
-              </View>
-            ) : null
-          }
-          ListFooterComponent={<ListFooter />}
-          ListEmptyComponent={
-            <LogbookEmptyState
-              onOpenCamera={() => router.push('/(app)/capture' as never)}
-            />
-          }
-          contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
-        />
-      )}
+            <TouchableOpacity
+              onPress={refresh}
+              style={{ marginTop: spacing.md }}
+            >
+              <Text
+                style={{
+                  fontFamily: fonts.heading,
+                  fontSize: fontSizes.caption,
+                  color: colors.primary,
+                }}
+              >
+                Reintentar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList<LogbookEntry>
+            data={filtered}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            onRefresh={refresh}
+            refreshing={isRefreshing}
+            onEndReached={() => {
+              if (!search.trim()) loadMore();
+            }}
+            onEndReachedThreshold={0.3}
+            ListHeaderComponent={
+              cameFromCache ? (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: spacing.sm,
+                    paddingHorizontal: spacing.lg,
+                    marginBottom: spacing.sm,
+                  }}
+                >
+                  <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text
+                    style={{
+                      fontFamily: fonts.caption,
+                      fontSize: fontSizes.caption,
+                      color: colors.textMuted,
+                    }}
+                  >
+                    Mostrando datos guardados
+                  </Text>
+                </View>
+              ) : null
+            }
+            ListFooterComponent={<ListFooter />}
+            ListEmptyComponent={
+              <LogbookEmptyState
+                onOpenCamera={() => router.push("/(app)/capture" as never)}
+              />
+            }
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 120 }}
+          />
+        )}
       </View>
 
       <LogbookActionSheet
