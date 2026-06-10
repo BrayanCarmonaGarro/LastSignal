@@ -15,6 +15,7 @@ import {
   RefreshControl,
   StatusBar,
 } from "react-native";
+import { useTheme } from "@/constants/theme";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -37,22 +38,16 @@ import * as Location from "expo-location";
 
 import { TripEquipmentSheet } from "@/components/trips/TripEquipmentSheet";
 
-const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#0d0d1a" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8888aa" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0a0a14" }] },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#1a1a2e" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#050510" }],
-  },
+const { colors, scheme } = useTheme();
+
+const mapStyle = useMemo(() => [
+  { elementType: "geometry", stylers: [{ color: colors.bgPrimary }] },
+  { elementType: "labels.text.fill", stylers: [{ color: colors.textMuted }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: colors.bgSecondary }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: colors.bgTertiary }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: colors.bgSecondary }] },
   { featureType: "poi", stylers: [{ visibility: "off" }] },
-];
+], [colors]);
 
 type TabView = "map" | "list";
 
@@ -272,7 +267,7 @@ export default function TripsIndexScreen() {
               provider={PROVIDER_GOOGLE}
               ref={handleMapRef}
               style={StyleSheet.absoluteFillObject}
-              customMapStyle={DARK_MAP_STYLE}
+              customMapStyle={mapStyle}
               showsUserLocation
               initialRegion={
                 userLocation
@@ -361,164 +356,261 @@ export default function TripsIndexScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#080818" },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  headerEyebrow: {
-    color: "#8888aa",
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 2,
-    marginBottom: 2,
-  },
-  headerTitle: { color: "#dde0ff", fontSize: 22, fontWeight: "800" },
-  headerRight: { alignItems: "flex-end", gap: 4, paddingTop: 4 },
-  offlineBadge: {
-    backgroundColor: "#ff444420",
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: "#ff444444",
-  },
-  offlineText: {
-    color: "#ff8888",
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-  staleBadge: {
-    backgroundColor: "#ffcc0015",
-    borderRadius: 6,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderWidth: 1,
-    borderColor: "#ffcc0033",
-  },
-  staleText: {
-    color: "#ffcc00",
-    fontSize: 9,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  oxygenSection: { paddingHorizontal: 16, paddingBottom: 10 },
-  tabs: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 8,
-    backgroundColor: "#0a0a1a",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ffffff10",
-    padding: 3,
-  },
-  tab: { flex: 1, paddingVertical: 8, alignItems: "center", borderRadius: 8 },
-  tabActive: {
-    backgroundColor: "#00d4ff18",
-    borderWidth: 1,
-    borderColor: "#00d4ff33",
-  },
-  tabText: {
-    color: "#8888aa",
-    fontSize: 13,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-  },
-  tabTextActive: { color: "#00d4ff" },
-  content: { flex: 1, position: "relative", overflow: "hidden" },
-  loadingOverlay: { padding: 20, alignItems: "center", gap: 8 },
-  loadingText: { color: "#8888aa", fontSize: 13 },
-  errorBanner: {
-    margin: 12,
-    padding: 12,
-    backgroundColor: "#ff444415",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ff444430",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  errorText: { color: "#ff8888", fontSize: 12, flex: 1 },
-  errorRetry: { color: "#00d4ff", fontSize: 12, fontWeight: "700" },
-  listContent: { padding: 16, paddingBottom: 80 },
-  sectionLabel: {
-    color: "#8888aa",
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 2,
-    marginBottom: 8,
-  },
-  emptyState: { alignItems: "center", paddingTop: 60, gap: 8 },
-  emptyIcon: { fontSize: 48, color: "#ffffff15" },
-  emptyTitle: { color: "#c0c0e0", fontSize: 16, fontWeight: "700" },
-  emptyDesc: {
-    color: "#8888aa",
-    fontSize: 13,
-    textAlign: "center",
-    paddingHorizontal: 40,
-  },
-  ctaContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    backgroundColor: "#080818",
-    borderTopWidth: 1,
-    borderTopColor: "#ffffff08",
-  },
-  startBtn: {
-    backgroundColor: "#00d4ff18",
-    borderWidth: 1,
-    borderColor: "#00d4ff55",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    shadowColor: "#00d4ff",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  startBtnDisabled: { borderColor: "#ffffff20", shadowOpacity: 0 },
-  startBtnText: {
-    color: "#00d4ff",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 2,
-  },
-  activePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-  },
-  activeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#00ff88",
-  },
-  activeText: { color: "#c0c0e0", fontSize: 13, fontWeight: "600" },
-  endBtn: {
-    marginTop: 10,
-    backgroundColor: "#ff444420",
-    borderWidth: 1,
-    borderColor: "#ff4444",
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  endBtnText: {
-    color: "#ff8888",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 1,
-  },
-});
+const styles = useMemo(
+  () =>
+    StyleSheet.create({
+      container: { flex: 1, backgroundColor: colors.bgPrimary },
+
+      header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 8,
+      },
+
+      headerEyebrow: {
+        color: colors.textMuted,
+        fontSize: 10,
+        fontWeight: "700",
+        letterSpacing: 2,
+        marginBottom: 2,
+      },
+
+      headerTitle: {
+        color: colors.textPrimary,
+        fontSize: 22,
+        fontWeight: "800",
+      },
+
+      headerRight: {
+        alignItems: "flex-end",
+        gap: 4,
+        paddingTop: 4,
+      },
+
+      offlineBadge: {
+        backgroundColor: colors.dangerBg,
+        borderRadius: 6,
+        paddingHorizontal: 7,
+        paddingVertical: 3,
+        borderWidth: 1,
+        borderColor: colors.borderDanger,
+      },
+
+      offlineText: {
+        color: colors.textDanger,
+        fontSize: 9,
+        fontWeight: "800",
+        letterSpacing: 1,
+      },
+
+      staleBadge: {
+        backgroundColor: colors.oxygenBg,
+        borderRadius: 6,
+        paddingHorizontal: 7,
+        paddingVertical: 3,
+        borderWidth: 1,
+        borderColor: colors.borderOxygen,
+      },
+
+      staleText: {
+        color: colors.textOxygen,
+        fontSize: 9,
+        fontWeight: "700",
+        letterSpacing: 1,
+      },
+
+      oxygenSection: {
+        paddingHorizontal: 16,
+        paddingBottom: 10,
+      },
+
+      tabs: {
+        flexDirection: "row",
+        marginHorizontal: 16,
+        marginBottom: 8,
+        backgroundColor: colors.bgSecondary,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: colors.borderDefault,
+        padding: 3,
+      },
+
+      tab: {
+        flex: 1,
+        paddingVertical: 8,
+        alignItems: "center",
+        borderRadius: 8,
+      },
+
+      tabActive: {
+        backgroundColor: colors.oxygenBg,
+        borderWidth: 1,
+        borderColor: colors.borderOxygen,
+      },
+
+      tabText: {
+        color: colors.textMuted,
+        fontSize: 13,
+        fontWeight: "600",
+        letterSpacing: 0.5,
+      },
+
+      tabTextActive: {
+        color: colors.textOxygen,
+      },
+
+      content: {
+        flex: 1,
+        position: "relative",
+        overflow: "hidden",
+      },
+
+      loadingOverlay: {
+        padding: 20,
+        alignItems: "center",
+        gap: 8,
+      },
+
+      loadingText: {
+        color: colors.textMuted,
+        fontSize: 13,
+      },
+
+      errorBanner: {
+        margin: 12,
+        padding: 12,
+        backgroundColor: colors.dangerBg,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: colors.borderDanger,
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+      },
+
+      errorText: {
+        color: colors.textDanger,
+        fontSize: 12,
+        flex: 1,
+      },
+
+      errorRetry: {
+        color: colors.textOxygen,
+        fontSize: 12,
+        fontWeight: "700",
+      },
+
+      listContent: {
+        padding: 16,
+        paddingBottom: 80,
+      },
+
+      sectionLabel: {
+        color: colors.textMuted,
+        fontSize: 10,
+        fontWeight: "700",
+        letterSpacing: 2,
+        marginBottom: 8,
+      },
+
+      emptyState: {
+        alignItems: "center",
+        paddingTop: 60,
+        gap: 8,
+      },
+
+      emptyIcon: {
+        fontSize: 48,
+        color: colors.borderDefault,
+      },
+
+      emptyTitle: {
+        color: colors.textPrimary,
+        fontSize: 16,
+        fontWeight: "700",
+      },
+
+      emptyDesc: {
+        color: colors.textMuted,
+        fontSize: 13,
+        textAlign: "center",
+        paddingHorizontal: 40,
+      },
+
+      ctaContainer: {
+        paddingHorizontal: 16,
+        paddingTop: 10,
+        backgroundColor: colors.bgPrimary,
+        borderTopWidth: 1,
+        borderTopColor: colors.borderDefault,
+      },
+
+      startBtn: {
+        backgroundColor: colors.oxygenBg,
+        borderWidth: 1,
+        borderColor: colors.oxygen,
+        borderRadius: 14,
+        paddingVertical: 16,
+        alignItems: "center",
+        shadowColor: colors.oxygen,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        elevation: 4,
+      },
+
+      startBtnDisabled: {
+        borderColor: colors.borderDefault,
+        shadowOpacity: 0,
+      },
+
+      startBtnText: {
+        color: colors.textOxygen,
+        fontSize: 14,
+        fontWeight: "800",
+        letterSpacing: 2,
+      },
+
+      activePill: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        paddingVertical: 14,
+      },
+
+      activeDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: colors.success ?? "#00ff88",
+      },
+
+      activeText: {
+        color: colors.textPrimary,
+        fontSize: 13,
+        fontWeight: "600",
+      },
+
+      endBtn: {
+        marginTop: 10,
+        backgroundColor: colors.dangerBg,
+        borderWidth: 1,
+        borderColor: colors.danger,
+        borderRadius: 14,
+        paddingVertical: 14,
+        alignItems: "center",
+      },
+
+      endBtnText: {
+        color: colors.textDanger,
+        fontSize: 14,
+        fontWeight: "800",
+        letterSpacing: 1,
+      },
+    }),
+  [colors]
+);
