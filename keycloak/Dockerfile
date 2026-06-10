@@ -5,4 +5,6 @@ ENV KC_HTTP_ENABLED=true
 ENV KC_HOSTNAME_STRICT=false
 ENV KC_PROXY=edge
 
+RUN /opt/keycloak/bin/kc.sh build --db=postgres
+
 ENTRYPOINT ["/opt/keycloak/bin/kc.sh", "start", "--optimized"]
