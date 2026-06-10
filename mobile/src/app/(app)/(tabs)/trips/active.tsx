@@ -9,6 +9,7 @@ import {
   StatusBar,
 } from "react-native";
 import MapView, { Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import { useTheme } from "@/constants/theme";
 import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -40,30 +41,6 @@ import { usersApi } from "@/services/api/users.api";
 
 // ─── CONSTANTES ───────────────────────────────────────
 const COLLECT_RADIUS_METERS = 300;
-const COLLECT_RANGE_CIRCLE_SIZE = 160; // diámetro visual en pantalla (px)
-
-const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#0d0d1a" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8888aa" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#0a0a14" }] },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#1a1a2e" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#00d4ff22" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#050510" }],
-  },
-  { featureType: "poi", stylers: [{ visibility: "off" }] },
-  { featureType: "transit", stylers: [{ visibility: "off" }] },
-];
 
 // ─── HELPER HAVERSINE ─────────────────────────────────
 function getDistanceMeters(
@@ -76,13 +53,143 @@ function getDistanceMeters(
   const Δφ = ((b.latitude - a.latitude) * Math.PI) / 180;
   const Δλ = ((b.longitude - a.longitude) * Math.PI) / 180;
   const x =
-    Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    Math.sin(Δφ / 2) ** 2 +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
 // ─── COMPONENTE ───────────────────────────────────────
 export default function ActiveTripScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+
+  // ─── TEMA ─────────────────────────────────────────────
+  const darkMapStyle = useMemo(
+    () => [
+      { elementType: "geometry", stylers: [{ color: colors.bgPrimary }] },
+      {
+        elementType: "labels.text.fill",
+        stylers: [{ color: colors.textMuted }],
+      },
+      {
+        elementType: "labels.text.stroke",
+        stylers: [{ color: colors.bgSecondary }],
+      },
+      {
+        featureType: "road",
+        elementType: "geometry",
+        stylers: [{ color: colors.bgTertiary }],
+      },
+      {
+        featureType: "road",
+        elementType: "geometry.stroke",
+        stylers: [{ color: colors.borderOxygen + "22" }],
+      },
+      {
+        featureType: "water",
+        elementType: "geometry",
+        stylers: [{ color: colors.bgPrimary }],
+      },
+      { featureType: "poi", stylers: [{ visibility: "off" }] },
+      { featureType: "transit", stylers: [{ visibility: "off" }] },
+    ],
+    [colors],
+  );
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1, backgroundColor: colors.bgPrimary },
+
+        collectRangeCircle: {
+          position: "absolute",
+          borderWidth: 1.5,
+          borderColor: colors.borderOxygen + "aa",
+          backgroundColor: colors.oxygen + "0a",
+          shadowColor: colors.oxygen,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: 6,
+          elevation: 0,
+        },
+
+        hudTop: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          paddingHorizontal: 16,
+        },
+        hudCard: {
+          borderRadius: 14,
+          overflow: "hidden",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.6,
+          shadowRadius: 12,
+          elevation: 10,
+        },
+        hudBottom: {
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          paddingHorizontal: 16,
+          gap: 10,
+        },
+        statsRow: {
+          flexDirection: "row",
+          backgroundColor: colors.bgSecondary + "ee",
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: colors.borderDefault,
+          paddingVertical: 12,
+          paddingHorizontal: 8,
+          alignItems: "center",
+          justifyContent: "space-around",
+        },
+        statItem: { alignItems: "center", gap: 2 },
+        statValue: {
+          color: colors.textPrimary,
+          fontSize: 18,
+          fontWeight: "800",
+          fontVariant: ["tabular-nums"],
+        },
+        statValueWarn: { color: colors.textWarning ?? "#ffcc00" },
+        statLabel: {
+          color: colors.textMuted,
+          fontSize: 10,
+          fontWeight: "600",
+          letterSpacing: 0.5,
+        },
+        statDivider: {
+          width: 1,
+          height: 28,
+          backgroundColor: colors.borderDefault,
+        },
+        endBtn: {
+          backgroundColor: colors.dangerBg,
+          borderWidth: 1,
+          borderColor: colors.danger,
+          borderRadius: 14,
+          paddingVertical: 16,
+          alignItems: "center",
+          shadowColor: colors.danger,
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 4,
+        },
+        endBtnDisabled: { opacity: 0.4 },
+        endBtnText: {
+          color: colors.textDanger,
+          fontSize: 14,
+          fontWeight: "800",
+          letterSpacing: 2,
+        },
+      }),
+    [colors],
+  );
 
   const { activeTrip, canEnd, end, collectDrop, logPosition } = useTrip();
   const { level, oxygenStatus, minutesRemaining, isConsuming } = useOxygen();
@@ -101,7 +208,6 @@ export default function ActiveTripScreen() {
 
   const [mapReady, setMapReady] = React.useState(false);
 
-  // Solo drops disponibles + recolectados en este viaje
   const currentTripDrops = useMemo(
     () =>
       supplyDrops.filter(
@@ -113,7 +219,6 @@ export default function ActiveTripScreen() {
   const allMarkers = useMemo<OverlayMarker[]>(() => {
     const markers: OverlayMarker[] = [];
 
-    // Posición del usuario para el círculo de rango
     if (userLocation) {
       markers.push({ id: "__user__", coordinate: userLocation });
     }
@@ -204,7 +309,7 @@ export default function ActiveTripScreen() {
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true;
-      return; // ignorar el primer render
+      return;
     }
 
     if (oxygenStatus === "critical") {
@@ -216,7 +321,6 @@ export default function ActiveTripScreen() {
     }
 
     if (oxygenStatus === "empty") {
-      // ── Pérdida: descartar tripPack sin transferir al inventario ──
       const handleOxygenEmpty = async () => {
         if (!activeTrip) return;
 
@@ -233,7 +337,7 @@ export default function ActiveTripScreen() {
               return resourcesApi.addLog(
                 invItem.id,
                 "CONSUMPTION",
-                packItem.initial, // se pierde TODO lo que llevaba, no solo lo gastado
+                packItem.initial,
                 "Pérdida total por O₂ agotado",
                 activeTrip.id,
               );
@@ -264,10 +368,10 @@ export default function ActiveTripScreen() {
       message:
         "¿Seguro que quieres terminar la exploración y regresar a la nave?",
       confirmLabel: "Terminar",
-      confirmColor: "#ef4444",
+      confirmColor: colors.danger,
       onConfirm: end,
     });
-  }, [end]);
+  }, [end, colors.danger]);
 
   const spendTripResource = useTripStore((s) => s.spendTripResource);
   const tripPack = useTripStore((s) => s.tripPack);
@@ -288,7 +392,7 @@ export default function ActiveTripScreen() {
             title: "📍 Acércate más",
             message: `Este suministro está a ${Math.round(dist)} m.\nNecesitas estar a menos de ${COLLECT_RADIUS_METERS} m para recolectarlo.`,
             confirmLabel: "Entendido",
-            confirmColor: "#00d4ff",
+            confirmColor: colors.oxygen,
             onConfirm: () => {},
           });
           return;
@@ -299,14 +403,12 @@ export default function ActiveTripScreen() {
         variant: "supply",
         drop,
         onCollect: async (d) => {
-          // 1. Descontar costo del tripPack en memoria
           if (tripPack.length > 0) {
             const cost = computeDropCost(d.items.length, d.id);
             for (const c of cost) {
               spendTripResource(c.base_resource_id, c.amount);
             }
 
-            // 2. Registrar el gasto en el backend
             try {
               const inventory =
                 (await resourcesApi.getAll()) as unknown as InventoryResourceFull[];
@@ -327,21 +429,19 @@ export default function ActiveTripScreen() {
               );
             } catch (err) {
               console.error("[active] Error al registrar gasto de drop:", err);
-              // No bloqueamos la recolección si falla
             }
           }
 
-          // 3. Recolectar el drop
           collectDrop(d.id);
 
           const xpByTier: Record<number, number> = { 1: 50, 2: 100 };
           const xp =
             d.items.length >= 3 ? 200 : (xpByTier[d.items.length] ?? 50);
-          usersApi.addXp(xp).catch(() => {}); // fire and forget
+          usersApi.addXp(xp).catch(() => {});
         },
       });
     },
-    [collectDrop, userLocation, tripPack, spendTripResource],
+    [collectDrop, userLocation, tripPack, spendTripResource, colors],
   );
 
   const handleWaypointPress = useCallback(
@@ -363,22 +463,7 @@ export default function ActiveTripScreen() {
   ).length;
   const totalSupplies = currentTripDrops.length;
 
-  // ─── UBICACIÓN INICIAL ────────────────────────────────
-  useEffect(() => {
-    (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-      const location = await Location.getCurrentPositionAsync({});
-      setUserLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-    })();
-  }, []);
-
   // ─── RENDER ───────────────────────────────────────────
-  const userPos = userLocation ? positions["__user__"] : null;
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -389,7 +474,7 @@ export default function ActiveTripScreen() {
           provider={PROVIDER_GOOGLE}
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
-          customMapStyle={DARK_MAP_STYLE}
+          customMapStyle={darkMapStyle}
           showsUserLocation
           showsMyLocationButton={false}
           initialRegion={{
@@ -404,7 +489,7 @@ export default function ActiveTripScreen() {
           {routePoints.length > 1 && (
             <Polyline
               coordinates={routePoints}
-              strokeColor="#00d4ff"
+              strokeColor={colors.oxygen}
               strokeWidth={2.5}
               lineDashPattern={[8, 4]}
             />
@@ -414,24 +499,25 @@ export default function ActiveTripScreen() {
 
       {/* Overlay de markers */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-        {/* Nave base */}
         {baseCoordinate && positions["__base__"] && (
           <BaseOverlayMarker
             screenX={positions["__base__"].x}
             screenY={positions["__base__"].y}
             icon="🚀"
-            color="#00d4ff"
+            color={colors.oxygen}
             size="lg"
             shape="circle"
             callout={{
               title: "Nave base",
               subtitle: "Punto de retorno",
-              badge: { label: `${minutesRemaining} min O₂`, color: "#00d4ff" },
+              badge: {
+                label: `${minutesRemaining} min O₂`,
+                color: colors.oxygen,
+              },
             }}
           />
         )}
 
-        {/* Supply drops */}
         {currentTripDrops.map((drop) => {
           const pos = positions[`supply_${drop.id}`];
           if (!pos) return null;
@@ -447,7 +533,6 @@ export default function ActiveTripScreen() {
           );
         })}
 
-        {/* Waypoints */}
         {waypoints.map((wp, index) => {
           const pos = positions[`wp_${wp.id}`];
           if (!pos) return null;
@@ -467,7 +552,6 @@ export default function ActiveTripScreen() {
           );
         })}
 
-        {/* Danger zones */}
         {dangerZones.map((dz) => {
           const pos = positions[`dz_${dz.id}`];
           if (!pos) return null;
@@ -541,93 +625,3 @@ export default function ActiveTripScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#050510" },
-
-  // ── Círculo de rango ──────────────────────────────────
-  collectRangeCircle: {
-    position: "absolute",
-    borderWidth: 1.5,
-    borderColor: "#00d4ffaa",
-    backgroundColor: "#00d4ff0a",
-    // Glow en iOS
-    shadowColor: "#00d4ff",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    // Glow en Android
-    elevation: 0,
-  },
-
-  hudTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-  },
-  hudCard: {
-    borderRadius: 14,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  hudBottom: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    gap: 10,
-  },
-  statsRow: {
-    flexDirection: "row",
-    backgroundColor: "#0a0a1aee",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#ffffff10",
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  statItem: { alignItems: "center", gap: 2 },
-  statValue: {
-    color: "#dde0ff",
-    fontSize: 18,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  statValueWarn: { color: "#ffcc00" },
-  statLabel: {
-    color: "#8888aa",
-    fontSize: 10,
-    fontWeight: "600",
-    letterSpacing: 0.5,
-  },
-  statDivider: { width: 1, height: 28, backgroundColor: "#ffffff15" },
-  endBtn: {
-    backgroundColor: "#ff444422",
-    borderWidth: 1,
-    borderColor: "#ff444466",
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: "center",
-    shadowColor: "#ff4444",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  endBtnDisabled: { opacity: 0.4 },
-  endBtnText: {
-    color: "#ff8888",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: 2,
-  },
-});
