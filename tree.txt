@@ -1,0 +1,223 @@
+mobile
+ ┣ src
+ ┃ ┣ app
+ ┃ ┃ ┣ (app)
+ ┃ ┃ ┃ ┣ (tabs)
+ ┃ ┃ ┃ ┃ ┣ logbook
+ ┃ ┃ ┃ ┃ ┃ ┣ index.tsx
+ ┃ ┃ ┃ ┃ ┃ ┣ newEntry.tsx
+ ┃ ┃ ┃ ┃ ┃ ┣ [id].tsx
+ ┃ ┃ ┃ ┃ ┃ ┗ _layout.tsx
+ ┃ ┃ ┃ ┃ ┣ resources
+ ┃ ┃ ┃ ┃ ┃ ┣ index.tsx
+ ┃ ┃ ┃ ┃ ┃ ┣ manage.tsx
+ ┃ ┃ ┃ ┃ ┃ ┗ _layout.tsx
+ ┃ ┃ ┃ ┃ ┣ trips
+ ┃ ┃ ┃ ┃ ┃ ┣ .index.tsx.swp
+ ┃ ┃ ┃ ┃ ┃ ┣ active.tsx
+ ┃ ┃ ┃ ┃ ┃ ┣ index.tsx
+ ┃ ┃ ┃ ┃ ┃ ┣ summary.tsx
+ ┃ ┃ ┃ ┃ ┃ ┗ _layout.tsx
+ ┃ ┃ ┃ ┃ ┣ dashboard.tsx
+ ┃ ┃ ┃ ┃ ┗ _layout.tsx
+ ┃ ┃ ┃ ┣ achievements
+ ┃ ┃ ┃ ┃ ┣ index.tsx
+ ┃ ┃ ┃ ┃ ┗ _layout.tsx
+ ┃ ┃ ┃ ┣ capture.tsx
+ ┃ ┃ ┃ ┗ _layout.tsx
+ ┃ ┃ ┣ (auth)
+ ┃ ┃ ┃ ┗ login.tsx
+ ┃ ┃ ┗ _layout.tsx
+ ┃ ┣ assets
+ ┃ ┃ ┗ fonts
+ ┃ ┃ ┃ ┣ Barlow-Light.ttf
+ ┃ ┃ ┃ ┣ Barlow-Regular.ttf
+ ┃ ┃ ┃ ┣ BarlowCondensed-Bold.ttf
+ ┃ ┃ ┃ ┣ BarlowCondensed-Medium.ttf
+ ┃ ┃ ┃ ┗ ShareTechMono-Regular.ttf
+ ┃ ┣ components
+ ┃ ┃ ┣ achievements
+ ┃ ┃ ┃ ┣ AchievementCard.tsx
+ ┃ ┃ ┃ ┗ AchievementToast.tsx
+ ┃ ┃ ┣ auth
+ ┃ ┃ ┃ ┣ UsernameSetupScreen.styles.ts
+ ┃ ┃ ┃ ┗ UsernameSetupScreen.tsx
+ ┃ ┃ ┣ dashboard
+ ┃ ┃ ┃ ┣ AchievementRecentRow.tsx
+ ┃ ┃ ┃ ┣ ActiveTripBanner.styles.ts
+ ┃ ┃ ┃ ┣ ActiveTripBanner.tsx
+ ┃ ┃ ┃ ┣ CriticalResourceBar.tsx
+ ┃ ┃ ┃ ┣ DashboardSkeleton.tsx
+ ┃ ┃ ┃ ┣ LogbookRecentRow.tsx
+ ┃ ┃ ┃ ┣ MetricCard.tsx
+ ┃ ┃ ┃ ┣ ProfileModal.styles.ts
+ ┃ ┃ ┃ ┣ ProfileModal.tsx
+ ┃ ┃ ┃ ┣ RecentAchievementsSection.tsx
+ ┃ ┃ ┃ ┣ SectionHeader.tsx
+ ┃ ┃ ┃ ┗ XpChip.tsx
+ ┃ ┃ ┣ logbook
+ ┃ ┃ ┃ ┣ ClassificationBadge.tsx
+ ┃ ┃ ┃ ┣ LogbookActionSheet.tsx
+ ┃ ┃ ┃ ┣ LogbookCard.tsx
+ ┃ ┃ ┃ ┣ LogbookEmptyState.tsx
+ ┃ ┃ ┃ ┣ LogbookFAB.tsx
+ ┃ ┃ ┃ ┣ LogbookFilterChips.tsx
+ ┃ ┃ ┃ ┣ LogbookSearchBar.tsx
+ ┃ ┃ ┃ ┣ LogbookSkeletonCard.tsx
+ ┃ ┃ ┃ ┣ QueueItem.tsx
+ ┃ ┃ ┃ ┗ UploadQueuePanel.tsx
+ ┃ ┃ ┣ network
+ ┃ ┃ ┃ ┗ NetworkBanner.tsx
+ ┃ ┃ ┣ resources
+ ┃ ┃ ┃ ┣ AlertBanner.tsx
+ ┃ ┃ ┃ ┗ ResourceCard.tsx
+ ┃ ┃ ┣ trips
+ ┃ ┃ ┃ ┣ markers
+ ┃ ┃ ┃ ┃ ┣ BaseMapMarker.tsx
+ ┃ ┃ ┃ ┃ ┣ BaseOverlayMarker.tsx
+ ┃ ┃ ┃ ┃ ┣ DangerZoneMarker.tsx
+ ┃ ┃ ┃ ┃ ┣ index.ts
+ ┃ ┃ ┃ ┃ ┣ SupplyDropMarker.tsx
+ ┃ ┃ ┃ ┃ ┗ WaypointMarker.tsx
+ ┃ ┃ ┃ ┣ OxygenBar.tsx
+ ┃ ┃ ┃ ┣ ResourceCounter.tsx
+ ┃ ┃ ┃ ┣ SupplyCard.tsx
+ ┃ ┃ ┃ ┣ TripActionSheet.tsx
+ ┃ ┃ ┃ ┣ TripEquipmentSheet.tsx
+ ┃ ┃ ┃ ┗ TripPackHUD.tsx
+ ┃ ┃ ┗ ui
+ ┃ ┃ ┃ ┣ Badge.tsx
+ ┃ ┃ ┃ ┣ Button.tsx
+ ┃ ┃ ┃ ┣ Card.tsx
+ ┃ ┃ ┃ ┣ GoogleLogo.tsx
+ ┃ ┃ ┃ ┣ OxygenIndicator.tsx
+ ┃ ┃ ┃ ┣ ProgressBar.tsx
+ ┃ ┃ ┃ ┣ PullToRefreshIndicator.tsx
+ ┃ ┃ ┃ ┣ ResourceHUD.styles.ts
+ ┃ ┃ ┃ ┣ ResourceHUD.tsx
+ ┃ ┃ ┃ ┣ StarField.tsx
+ ┃ ┃ ┃ ┣ SwipeTabsGesture.tsx
+ ┃ ┃ ┃ ┣ TabBar.styles.ts
+ ┃ ┃ ┃ ┣ TabBar.tsx
+ ┃ ┃ ┃ ┣ TabBarItem.tsx
+ ┃ ┃ ┃ ┣ TextInputField.tsx
+ ┃ ┃ ┃ ┗ Toast.tsx
+ ┃ ┣ constants
+ ┃ ┃ ┣ theme
+ ┃ ┃ ┃ ┣ domain
+ ┃ ┃ ┃ ┃ ┣ classifications.ts
+ ┃ ┃ ┃ ┃ ┣ danger.ts
+ ┃ ┃ ┃ ┃ ┗ resources.ts
+ ┃ ┃ ┃ ┣ hooks
+ ┃ ┃ ┃ ┃ ┗ useTheme.ts
+ ┃ ┃ ┃ ┣ screens
+ ┃ ┃ ┃ ┃ ┣ login.ts
+ ┃ ┃ ┃ ┃ ┗ resources.ts
+ ┃ ┃ ┃ ┣ tokens
+ ┃ ┃ ┃ ┃ ┣ animation.ts
+ ┃ ┃ ┃ ┃ ┣ palette.ts
+ ┃ ┃ ┃ ┃ ┣ semantic.ts
+ ┃ ┃ ┃ ┃ ┣ shadows.ts
+ ┃ ┃ ┃ ┃ ┣ spacing.ts
+ ┃ ┃ ┃ ┃ ┗ typography.ts
+ ┃ ┃ ┃ ┗ index.ts
+ ┃ ┃ ┣ classifications.ts
+ ┃ ┃ ┣ labels.ts
+ ┃ ┃ ┣ levels.ts
+ ┃ ┃ ┣ queueStatus.ts
+ ┃ ┃ ┣ resources.ts
+ ┃ ┃ ┣ tabs.ts
+ ┃ ┃ ┗ validation.ts
+ ┃ ┣ context
+ ┃ ┃ ┗ ToastContext.tsx
+ ┃ ┣ contexts
+ ┃ ┣ hooks
+ ┃ ┃ ┣ auth
+ ┃ ┃ ┃ ┣ useLogin.ts
+ ┃ ┃ ┃ ┗ useUsernameSetup.ts
+ ┃ ┃ ┣ dashboard
+ ┃ ┃ ┃ ┣ useActiveTripBanner.ts
+ ┃ ┃ ┃ ┗ useDashboard.ts
+ ┃ ┃ ┣ offline
+ ┃ ┃ ┃ ┣ useNetworkStatus.ts
+ ┃ ┃ ┃ ┗ useOfflineSync.ts
+ ┃ ┃ ┣ trip
+ ┃ ┃ ┃ ┣ useMarkerOverlay.ts
+ ┃ ┃ ┃ ┣ useOxygen.ts
+ ┃ ┃ ┃ ┣ useSupplies.ts
+ ┃ ┃ ┃ ┗ useTrip.ts
+ ┃ ┃ ┣ ui
+ ┃ ┃ ┃ ┗ useTabNavigation.ts
+ ┃ ┃ ┣ useAchievements.ts
+ ┃ ┃ ┣ useAuthNavigation.ts
+ ┃ ┃ ┣ useCamera.ts
+ ┃ ┃ ┣ useLogbook.ts
+ ┃ ┃ ┣ useLoginAnimations.ts
+ ┃ ┃ ┣ useLogout.ts
+ ┃ ┃ ┣ useResources.ts
+ ┃ ┃ ┣ useSwipeTabsGesture.ts
+ ┃ ┃ ┗ useSwipeTabsGesture.utils.ts
+ ┃ ┣ services
+ ┃ ┃ ┣ api
+ ┃ ┃ ┃ ┣ achievements.api.ts
+ ┃ ┃ ┃ ┣ ai.api.ts
+ ┃ ┃ ┃ ┣ client.ts
+ ┃ ┃ ┃ ┣ dashboard.api.ts
+ ┃ ┃ ┃ ┣ logbook.api.ts
+ ┃ ┃ ┃ ┣ resources.api.ts
+ ┃ ┃ ┃ ┣ shipBases.api.ts
+ ┃ ┃ ┃ ┣ storage.api.ts
+ ┃ ┃ ┃ ┣ supply_drops.api.ts
+ ┃ ┃ ┃ ┣ trips.api.ts
+ ┃ ┃ ┃ ┗ users.api.ts
+ ┃ ┃ ┣ auth
+ ┃ ┃ ┃ ┗ keycloak.ts
+ ┃ ┃ ┣ offline
+ ┃ ┃ ┃ ┗ queue.ts
+ ┃ ┃ ┣ trip
+ ┃ ┃ ┃ ┣ dangerZoneService.ts
+ ┃ ┃ ┃ ┣ offlineQueue.ts
+ ┃ ┃ ┃ ┣ supplyDropService.ts
+ ┃ ┃ ┃ ┣ tripService.ts
+ ┃ ┃ ┃ ┗ waypointService.ts
+ ┃ ┃ ┣ cameraService.ts
+ ┃ ┃ ┗ permissionService.ts
+ ┃ ┣ store
+ ┃ ┃ ┣ achievementStore.ts
+ ┃ ┃ ┣ authStore.ts
+ ┃ ┃ ┣ dashboardStore.ts
+ ┃ ┃ ┣ logbookStore.ts
+ ┃ ┃ ┣ resourceStore.ts
+ ┃ ┃ ┗ tripStore.ts
+ ┃ ┣ styles
+ ┃ ┃ ┣ captureStyles.ts
+ ┃ ┃ ┣ dashboardStyles.ts
+ ┃ ┃ ┗ loginStyles.ts
+ ┃ ┣ types
+ ┃ ┃ ┣ achievement.types.ts
+ ┃ ┃ ┣ auth.types.ts
+ ┃ ┃ ┣ logbook.types.ts
+ ┃ ┃ ┣ resource.types.ts
+ ┃ ┃ ┣ supply_drop.types.ts
+ ┃ ┃ ┣ trip.types.ts
+ ┃ ┃ ┗ trip_pack.types.ts
+ ┃ ┗ utils
+ ┃ ┃ ┣ formatters.ts
+ ┃ ┃ ┣ levels.ts
+ ┃ ┃ ┣ resources.ts
+ ┃ ┃ ┣ storage.ts
+ ┃ ┃ ┗ validators.ts
+ ┣ .env
+ ┣ .env.example
+ ┣ .eslintrc.js
+ ┣ .gitignore
+ ┣ .npmrc
+ ┣ .prettierrc
+ ┣ app.json
+ ┣ babel.config.js
+ ┣ cspell.json
+ ┣ index.ts
+ ┣ metro.config.js
+ ┣ package-lock.json
+ ┣ package.json
+ ┗ tsconfig.json

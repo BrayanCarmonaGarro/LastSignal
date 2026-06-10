@@ -1,4 +1,3 @@
-// src/hooks/useAuthNavigation.ts
 import { useEffect } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
@@ -9,16 +8,19 @@ export function useAuthNavigation(fontsLoaded: boolean) {
   const segments = useSegments();
 
   useEffect(() => {
-    if (isLoading || !fontsLoaded) return;
+    if (isLoading || !fontsLoaded || !segments[0]) return;
 
     const inAuth        = segments[0] === '(auth)';
+    const inApp         = segments[0] === '(app)';
     const authenticated = !!user && !!dbUser?.username;
 
-    if (!authenticated) {
-      if (!inAuth) router.replace('/(auth)/login');
-      return;
+    if (!authenticated && inApp) {
+      router.replace('/(auth)/login');
     }
 
-    if (inAuth) router.replace('/(app)/(tabs)/dashboard');
+    if (authenticated && inAuth) {
+      router.replace('/(app)/(tabs)/dashboard');
+    }
+
   }, [user, dbUser, isLoading, fontsLoaded, segments]);
 }
