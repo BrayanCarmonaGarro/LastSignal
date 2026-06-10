@@ -8,7 +8,7 @@ import {
   Alert,
   StatusBar,
 } from "react-native";
-import MapView, { Polyline } from "react-native-maps";
+import MapView, { Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -386,6 +386,7 @@ export default function ActiveTripScreen() {
       {/* Mapa */}
       {mapReady && userLocation && (
         <MapView
+          provider={PROVIDER_GOOGLE}
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           customMapStyle={DARK_MAP_STYLE}

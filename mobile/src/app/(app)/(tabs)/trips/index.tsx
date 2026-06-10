@@ -15,7 +15,7 @@ import {
   RefreshControl,
   StatusBar,
 } from "react-native";
-import MapView from "react-native-maps";
+import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTrip } from "@/hooks/trip/useTrip";
@@ -128,7 +128,8 @@ export default function TripsIndexScreen() {
       try {
         const trip = await tripService.getActiveTrip();
         setActiveTrip(trip);
-      } catch {
+      } catch (e) {
+        console.warn("[Trips] loadActiveTrip error:", e);
         setActiveTrip(null);
       }
     };
@@ -138,16 +139,24 @@ export default function TripsIndexScreen() {
   // ─── LOCATION ─────────────────────────
   useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-
-      const location = await Location.getCurrentPositionAsync({});
-      const coords = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-      setUserLocation(coords);
-      setLocationReady(true);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setLocationReady(true); // ← igual marca como listo para no quedar bloqueado
+          return;
+        }
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced, // ← menos agresivo que el default
+        });
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+      } catch (e) {
+        console.warn("[Trips] Location error:", e);
+      } finally {
+        setLocationReady(true); // ← siempre desbloquea
+      }
     })();
   }, []);
 
@@ -167,7 +176,10 @@ export default function TripsIndexScreen() {
       handleTabChange("map");
       setTimeout(() => {
         mapRef.current?.animateCamera(
-          { center: { latitude: drop.latitude, longitude: drop.longitude }, zoom: 16 },
+          {
+            center: { latitude: drop.latitude, longitude: drop.longitude },
+            zoom: 16,
+          },
           { duration: 700 },
         );
       }, 50);
@@ -257,6 +269,7 @@ export default function TripsIndexScreen() {
         {activeTab === "map" ? (
           <>
             <MapView
+              provider={PROVIDER_GOOGLE}
               ref={handleMapRef}
               style={StyleSheet.absoluteFillObject}
               customMapStyle={DARK_MAP_STYLE}
@@ -280,7 +293,10 @@ export default function TripsIndexScreen() {
               onRegionChange={recalculate}
               onLayout={recalculate}
             />
-            <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+            <View
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="box-none"
+            >
               {availableDrops.map((drop) => {
                 const pos = positions[`supply_${drop.id}`];
                 if (!pos) return null;
@@ -316,7 +332,9 @@ export default function TripsIndexScreen() {
       </View>
 
       {/* CTA */}
-      <View style={[styles.ctaContainer, { paddingBottom: insets.bottom + 12 }]}>
+      <View
+        style={[styles.ctaContainer, { paddingBottom: insets.bottom + 12 }]}
+      >
         {!tripStatus && (
           <TouchableOpacity
             style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
@@ -370,7 +388,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ff444444",
   },
-  offlineText: { color: "#ff8888", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
+  offlineText: {
+    color: "#ff8888",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
   staleBadge: {
     backgroundColor: "#ffcc0015",
     borderRadius: 6,
@@ -379,7 +402,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ffcc0033",
   },
-  staleText: { color: "#ffcc00", fontSize: 9, fontWeight: "700", letterSpacing: 1 },
+  staleText: {
+    color: "#ffcc00",
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 1,
+  },
   oxygenSection: { paddingHorizontal: 16, paddingBottom: 10 },
   tabs: {
     flexDirection: "row",
@@ -397,7 +425,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#00d4ff33",
   },
-  tabText: { color: "#8888aa", fontSize: 13, fontWeight: "600", letterSpacing: 0.5 },
+  tabText: {
+    color: "#8888aa",
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+  },
   tabTextActive: { color: "#00d4ff" },
   content: { flex: 1, position: "relative", overflow: "hidden" },
   loadingOverlay: { padding: 20, alignItems: "center", gap: 8 },
@@ -453,7 +486,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   startBtnDisabled: { borderColor: "#ffffff20", shadowOpacity: 0 },
-  startBtnText: { color: "#00d4ff", fontSize: 14, fontWeight: "800", letterSpacing: 2 },
+  startBtnText: {
+    color: "#00d4ff",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 2,
+  },
   activePill: {
     flexDirection: "row",
     alignItems: "center",
@@ -461,7 +499,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
   },
-  activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#00ff88" },
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#00ff88",
+  },
   activeText: { color: "#c0c0e0", fontSize: 13, fontWeight: "600" },
   endBtn: {
     marginTop: 10,
@@ -472,5 +515,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
   },
-  endBtnText: { color: "#ff8888", fontSize: 14, fontWeight: "800", letterSpacing: 1 },
+  endBtnText: {
+    color: "#ff8888",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
 });
