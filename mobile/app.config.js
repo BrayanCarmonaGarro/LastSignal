@@ -28,7 +28,7 @@ export default {
       predictiveBackGestureEnabled: false,
       config: {
         googleMaps: {
-          apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY, // ✅ Aquí sí funciona
+          apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY,
         },
       },
       permissions: [
@@ -40,8 +40,8 @@ export default {
         "android.permission.ACCESS_MEDIA_LOCATION",
         "android.permission.READ_MEDIA_AUDIO",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.ACCESS_FINE_LOCATION",      // ← necesario para el mapa
-        "android.permission.ACCESS_COARSE_LOCATION",   // ← necesario para el mapa
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
       ],
       package: "com.brayancarmonagarro.mobile",
     },
@@ -55,6 +55,17 @@ export default {
       "expo-web-browser",
       "expo-secure-store",
       "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "kotlinVersion": "2.0.21"
+          }
+        }
+      ],
       [
         "expo-camera",
         {
